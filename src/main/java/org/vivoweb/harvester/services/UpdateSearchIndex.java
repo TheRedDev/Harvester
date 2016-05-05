@@ -15,20 +15,16 @@ import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
-import org.vivoweb.harvester.util.args.UsageException; 
-
+import org.vivoweb.harvester.util.args.UsageException;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
- 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-//import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils; 
 
 /**
  * Execute Sparql update in Jena model in an instance of VIVO
@@ -40,28 +36,26 @@ public class UpdateSearchIndex {
 	 * SLF4J Logger
 	 */
 	private static Logger log = LoggerFactory.getLogger(UpdateSearchIndex.class);
-	/**
-	 * file which contains list of uris
-	 */
-	private String uriList;	 
-	 
-	 
 	
-	/*
+	/**
+	 * path to file which contains list of uris
+	 */
+	private String uriList;
+	
+	/**
 	 * VIVO admin user name
 	 */
 	private String username;
 	
-	/*
+	/**
 	 * VIVO admin password
 	 */
-	private String password; 
+	private String password;
 	
-	/*
-	 *service URL
+	/**
+	 * service URL
 	 */
 	private String url;
-	 
 	
 	/**
 	 * Constructor
@@ -76,42 +70,51 @@ public class UpdateSearchIndex {
 	/**
 	 * Constructor
 	 * @param argList parsed argument list
-	 * @throws IOException error creating task
 	 */
-	private UpdateSearchIndex(ArgList argList) throws IOException {
-		 
-		 
+	private UpdateSearchIndex(ArgList argList) {
+		this(
+			argList.get("u"),
+			argList.get("p"),
+			argList.get("U"),
+			argList.get("f")
+		);
+	}
+	
+	/**
+	 * Library Constructor
+	 * @param username VIVO admin user name
+	 * @param password VIVO admin password
+	 * @param url service URL
+	 * @param uriFilePath path to file which contains list of uris
+	 */
+	private UpdateSearchIndex(String username, String password, String url, String uriFilePath) {
+		
 		// get username
-		this.username = argList.get("u");
+		this.username = username;
 		
 		// get password
-		this.password = argList.get("p"); 
+		this.password = password;
 		
 		// get service url
-		this.url = argList.get("U");
+		this.url = url;
 		
 		// get filename containing uris
-		this.uriList = argList.get("F");
-		
-		 
+		this.uriList = uriFilePath;
 		
 		// Require user name 
-		if (this.username == null) {
+		if(this.username == null) {
 			throw new IllegalArgumentException("Must provide a VIVO admin username");
 		}
 		
 		// Require password
-		if (this.password == null) {
+		if(this.password == null) {
 			throw new IllegalArgumentException("Must provide a VIVO admin password");
 		}
 		
-		if (this.uriList == null) {
+		if(this.uriList == null) {
 			throw new IllegalArgumentException("Must provide file with a list of uris");
 		}
 		
-		
-		
-		 
 	}
 	
 	/**
@@ -119,38 +122,33 @@ public class UpdateSearchIndex {
 	 * @throws IOException error
 	 */
 	private void execute() throws IOException {
-	   //System.out.println("To be implemented");
-	  
-	   CloseableHttpClient httpclient = HttpClients.createDefault();
-	   try {
-	      HttpPost httpPost = new HttpPost(this.url);
-	      List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-	       
-	      nvps.add(new BasicNameValuePair("email", this.username));
-	      nvps.add(new BasicNameValuePair("password", this.password));
-	      
-	      httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-	      CloseableHttpResponse response = httpclient.execute(httpPost);
-	      try {
-              System.out.println(response.getStatusLine());
-              HttpEntity entity = response.getEntity();
-              InputStream is = entity.getContent();
-              try {
-            	 IOUtils.copy(is, System.out);
-              } finally {
-                 is.close();
-              }
-              
-          } finally {
-              response.close();
-          }
-	       
-	   } finally {
-	      httpclient.close();	
-	   }
-	   
-	   
-	   
+		//System.out.println("To be implemented");
+		
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		try {
+			HttpPost httpPost = new HttpPost(this.url);
+			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+			
+			nvps.add(new BasicNameValuePair("email", this.username));
+			nvps.add(new BasicNameValuePair("password", this.password));
+			
+			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+			CloseableHttpResponse response = httpclient.execute(httpPost);
+			try {
+				System.out.println(response.getStatusLine());
+				HttpEntity entity = response.getEntity();
+				InputStream is = entity.getContent();
+				try {
+					IOUtils.copy(is, System.out);
+				} finally {
+					is.close();
+				}
+			} finally {
+				response.close();
+			}
+		} finally {
+			httpclient.close();
+		}
 	}
 	
 	/**
@@ -160,11 +158,10 @@ public class UpdateSearchIndex {
 	private static ArgParser getParser() {
 		ArgParser parser = new ArgParser("UpdateSearchIndex");
 		// Inputs
-		
 		parser.addArgument(new ArgDef().setShortOption('f').setLongOpt("filename").withParameter(true, "FILENAME").setDescription("the file which contains a list of uris").setRequired(true));
-		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("username").withParameter(true, "USERNAME").setDescription("vivo admin user name").setRequired(true)); 
-		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("password").withParameter(true, "PASSWORD").setDescription("vivo admin password").setRequired(true)); 
-		parser.addArgument(new ArgDef().setShortOption('U').setLongOpt("url").withParameter(true, "URL").setDescription("service url").setRequired(true));  
+		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("username").withParameter(true, "USERNAME").setDescription("vivo admin user name").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("password").withParameter(true, "PASSWORD").setDescription("vivo admin password").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('U').setLongOpt("url").withParameter(true, "URL").setDescription("service url").setRequired(true));
 		return parser;
 	}
 	
@@ -180,7 +177,7 @@ public class UpdateSearchIndex {
 			new UpdateSearchIndex(args).execute();
 		} catch(IllegalArgumentException e) {
 			log.error(e.getMessage());
-			log.debug("Stacktrace:",e);
+			log.debug("Stacktrace:", e);
 			System.out.println(getParser().getUsage());
 			error = e;
 		} catch(UsageException e) {
@@ -189,7 +186,7 @@ public class UpdateSearchIndex {
 			error = e;
 		} catch(Exception e) {
 			log.error(e.getMessage());
-			log.debug("Stacktrace:",e);
+			log.debug("Stacktrace:", e);
 			error = e;
 		} finally {
 			log.info(getParser().getAppName() + ": End");

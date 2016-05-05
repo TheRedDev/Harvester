@@ -7,18 +7,21 @@ package org.vivoweb.harvester.util.repo;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.FileAide;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.tdb.TDB;
-import com.hp.hpl.jena.tdb.TDBFactory;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.tdb.TDB;
+import org.apache.jena.tdb.TDBFactory;
+import org.apache.jena.tdb.base.block.FileMode;
+import org.apache.jena.tdb.sys.SystemTDB;
 
 /**
  * Connection Helper for TDB Jena Models
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class TDBJenaConnect extends JenaConnect {
 	/**
@@ -30,18 +33,13 @@ public class TDBJenaConnect extends JenaConnect {
 	 */
 	private static HashMap<String, Dataset> dirDatasets = new HashMap<String, Dataset>();
 	/**
+	 * Map of references to each Dataset
+	 */
+	private static HashMap<Dataset, HashSet<TDBJenaConnect>> dsRefs = new HashMap<Dataset, HashSet<TDBJenaConnect>>();
+	/**
 	 * the TDB directory name
 	 */
 	private final String dbDir;
-	
-	/**
-	 * Clone Constructor
-	 * @param original the original to clone
-	 * @param modelName the modelname to connect to
-	 */
-	private TDBJenaConnect(TDBJenaConnect original, String modelName) {
-		this(original.dbDir, modelName);
-	}
 	
 	/**
 	 * Constructor (Default Model)
@@ -57,6 +55,7 @@ public class TDBJenaConnect extends JenaConnect {
 	 * @param modelName the model to connect to
 	 */
 	public TDBJenaConnect(String dbDir, String modelName) {
+		SystemTDB.setFileMode(FileMode.direct);
 		this.dbDir = dbDir;
 		try {
 			FileAide.createFolder(this.dbDir);
@@ -65,21 +64,20 @@ public class TDBJenaConnect extends JenaConnect {
 		}
 		
 		if (modelName != null) {
-			setModelName(modelName);			 
+			setModelName(modelName);
 		    Model m = getDataset().getNamedModel(getModelName());
 		    log.trace("model "+ modelName +" size: "+m.size());
 			setJenaModel(m);
 		} else {
-			//setModelName("urn:x-arq:DefaultGraph");
+			//setModelName(Quad.defaultGraphIRI.getURI());
 			Model m = getDataset().getDefaultModel();
-			Iterator iter = getDataset().listNames();
+			Iterator<String> iter = getDataset().listNames();
 			while (iter.hasNext()) {
 				log.trace("ds: "+iter.next());
 			}
 			log.trace("model size: "+m.size());
 			setJenaModel(m);
 		}
-		 
 		sync(); 
 	}
 	
@@ -88,20 +86,48 @@ public class TDBJenaConnect extends JenaConnect {
 		if(!dirDatasets.containsKey(this.dbDir)) {
 			dirDatasets.put(this.dbDir, TDBFactory.createDataset(this.dbDir));
 		}
-		return dirDatasets.get(this.dbDir);
+		Dataset ds = dirDatasets.get(this.dbDir);
+		if(!dsRefs.containsKey(ds)) {
+			dsRefs.put(ds, new HashSet<TDBJenaConnect>());
+		}
+		HashSet<TDBJenaConnect> dsRef = dsRefs.get(ds);
+		if(!dsRef.contains(this)) {
+			dsRef.add(this);
+		}
+		return ds;
 	}
 	
 	@Override
 	public JenaConnect neighborConnectClone(String modelName) {
-		return new TDBJenaConnect(this, modelName);
+		return new TDBJenaConnect(this.dbDir, modelName);
 	}
 	
 	@Override
 	public void close() {
 		super.close();
-		getJenaModel().close();		 
+		try {
+			getJenaModel().close();
+		} catch(NullPointerException e) {
+			// Do Nothing
+		}
+		Dataset ds = getDataset();
+		HashSet<TDBJenaConnect> dsRef = dsRefs.get(ds);
+		dsRef.remove(this);
+		if(dsRef.isEmpty()) {
+			dsRefs.remove(ds);
+			dirDatasets.remove(this.dbDir);
+			ds.close();
+		}
 	}
 	
+	/**
+	 * Get the dbDir
+	 * @return dbDir
+	 */
+	protected String getDbDir() {
+		return this.dbDir;
+	}
+
 	@Override
 	public void printParameters() {
 		super.printParameters();

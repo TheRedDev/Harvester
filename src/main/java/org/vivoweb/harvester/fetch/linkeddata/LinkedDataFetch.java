@@ -6,64 +6,34 @@
 package org.vivoweb.harvester.fetch.linkeddata;
 
 import java.io.IOException; 
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.List;
-
-
-import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.params.HttpParams;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
-import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair; 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.hp.hpl.jena.rdf.model.Model;
-
 import org.vivoweb.harvester.fetch.linkeddata.discovery.DiscoverUrisUsingListrdf;
 import org.vivoweb.harvester.fetch.linkeddata.discovery.DiscoveryWorker;
 import org.vivoweb.harvester.fetch.linkeddata.discovery.DiscoveryWorkerException;
 import org.vivoweb.harvester.fetch.linkeddata.service.HttpLinkedDataService;
 import org.vivoweb.harvester.fetch.linkeddata.service.LinkedDataService;
 import org.vivoweb.harvester.fetch.linkeddata.util.http.BasicHttpWorker;
-//import org.vivoweb.harvester.fetch.linkeddata.util.http.BasicHttpWorkerRequest;
 import org.vivoweb.harvester.fetch.linkeddata.util.http.HttpWorker;
-import org.vivoweb.harvester.fetch.linkeddata.util.http.HttpWorkerRequest;
-//import org.vivoweb.harvester.fetch.linkeddata.util.http.HttpWorkerRequest.Method;
 import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
-import org.vivoweb.harvester.util.repo.JenaConnect;
-import org.vivoweb.harvester.util.repo.RecordHandler; 
-//import org.vivoweb.harvester.util.repo.XMLRecordOutputStream;
-import org.w3c.dom.Document;
+import org.vivoweb.harvester.util.repo.RecordHandler;
  
 
 /**
  * Class for harvesting from OAI Data Sources
  * @author Dale Scheppler
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class LinkedDataFetch  {
 	/**
@@ -71,31 +41,21 @@ public class LinkedDataFetch  {
 	 */
 	private static Logger log = LoggerFactory.getLogger(LinkedDataFetch.class);
 	
-	/*
+	/**
 	 *service URL
 	 */
 	private String url;
 	
-	/*
+	/**
 	 * vClass to be displayed
 	 */
 	Iterable<String> vClasses;
 	
-	/*
+	/**
 	 * optional rich export include dirs
 	 */
 	Iterable<String> includes;
 	
-	 
-	
-	/**
-	 * Model to write records to
-	 */
-	private JenaConnect output;
-	
-	
-	 
-	 
 	/**
 	 * The record handler to write records to
 	 */
@@ -120,18 +80,25 @@ public class LinkedDataFetch  {
         this.rhOutput = rhOutput;
     }
     
-    
-	 
+    /**
+     * Get format
+     * @return format value
+     */
     public String getFormat() {
-		return format;
+		return this.format;
 	}
 
-	public void setFormat(String format) {
+    /**
+     * Set format
+     * @param format new value
+     */
+    public void setFormat(String format) {
 		this.format = format;
 	}
-
-
-
+    
+	/**
+	 * connection timeout
+	 */
 	protected static final int TIMEOUT = 100;
     
 	/**
@@ -144,19 +111,12 @@ public class LinkedDataFetch  {
 		this(getParser().parse(args));
 	}
 	
-	/*protected LinkedDataFetch(String url, <List>String vClasses, RecordHandler recordHandler) {
-		this.rhOutput = recordHandler;  
-		this.url = url;
-		this.vClasses = vClasses;		 
-	}*/
-	
 	/**
 	 * Constructor
 	 * @param argList parsed argument list
 	 * @throws IOException error connecting to record handler
 	 */
 	private LinkedDataFetch(ArgList argList) throws IOException {
-		 
 		this(
 			argList.get("U"),
 			argList.getAll("v"),
@@ -164,35 +124,32 @@ public class LinkedDataFetch  {
 			argList.getAll("I"),
 			argList.get("f")
 		);
-		 
-		// Require record handler
-		if (this.rhOutput == null) {
+		
+		if(this.rhOutput == null) {
 			throw new IllegalArgumentException("Must provide an output {-o, -O}");
 		}
 		
-		// get service url
-		//this.url = argList.get("U");
-		
-		if (this.url == null) {
+		if(this.url == null) {
 			throw new IllegalArgumentException("Must provide the service URL");
 		}
-		
-		// get vClass
-		 
-		//this.vClasses = argList.getAll("v");		
-		if (this.vClasses == null) {
+				
+		if(this.vClasses == null) {
 			throw new IllegalArgumentException("Must provide at least one name for a vClass");
 		}
 		
-		if (this.format == null) {
+		if(this.format == null) {
 			this.format = "rdfxml";
 		}
-		
-		 
-		
 	}
 	
-	 
+	/**
+	 * Constructor
+	 * @param url service URL
+	 * @param vClasses vClass to be displayed
+	 * @param recordHandler the record handler to write record to
+	 * @param includes optional rich export include dirs
+	 * @param format format of the output
+	 */
 	public LinkedDataFetch(String url, List<String> vClasses, RecordHandler recordHandler, List<String> includes, String format) {
 		this.url = url;
 		this.vClasses = vClasses;
@@ -277,66 +234,6 @@ public class LinkedDataFetch  {
 	}
 	
 	/**
-	 * @param uri
-	 * @return
-	 * @throws Exception
-	 */
-	private static String getLinkedDataRDF(String uri, HttpWorker httpWorker) throws Exception {
-		
-		 HttpWorkerRequest req = httpWorker.get(uri).accept("application/rdf+xml");
-		 return req.asString().execute().toString();
-		 
-	} 
-	
-	/**
-	 * @param uri
-	 * @return
-	 * @throws Exception
-	 */
-	private static String getLinkedData(String uri) throws Exception {
-		Header header = new BasicHeader(HttpHeaders.ACCEPT, "application/rdf+xml");
-		CloseableHttpClient httpclient = HttpClients.createDefault();
-		 
-		StringWriter writer = new StringWriter();
-		String ld = new String();
-		try {
-			HttpGet get = new HttpGet(uri);
-			get.addHeader(header);
-			//List <NameValuePair> nvps = new ArrayList <NameValuePair>(); 
-		    //nvps.add(new BasicNameValuePair("email", "jaf30@cornell.edu"));
-		    //nvps.add(new BasicNameValuePair("password", "vivoadmin"));
-		    
-			
-			CloseableHttpResponse response = httpclient.execute(get);
-			try {
-				if( response == null )
-	                throw new Exception("HTTP response for " +uri+ " was null.");
-	            if( response != null &&
-	                response.getStatusLine() != null &&
-	                response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-	                throw new Exception("could not get HTTP for " + uri +
-	                                    " status: " + response.getStatusLine() );
-	            }
-				HttpEntity entity = response.getEntity();
-				InputStream is = entity.getContent();
-				try {
-					IOUtils.copy(is, writer, "UTF-8");
-					ld = writer.toString();
-				} finally {
-					is.close();
-				}
-				
-			} finally {
-				response.close();
-			}
-			
-		} finally {
-			httpclient.close();
-		}
-		return ld;
-	}
-	
-	/**
 	 * Get the ArgParser for this task
 	 * @return the ArgParser
 	 */
@@ -350,8 +247,6 @@ public class LinkedDataFetch  {
 		parser.addArgument(new ArgDef().setShortOption('f').setLongOpt("format").withParameter(true, "FORMAT").setDescription("output format").setRequired(false));
 		return parser;
 	}
-
-	 
 	
 	/**
 	 * Main method

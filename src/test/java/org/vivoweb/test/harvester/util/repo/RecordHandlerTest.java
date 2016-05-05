@@ -24,7 +24,7 @@ import org.vivoweb.harvester.util.repo.SDBJenaConnect;
 import org.vivoweb.harvester.util.repo.TextFileRecordHandler;
 
 /**
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class RecordHandlerTest extends TestCase {
 	/**

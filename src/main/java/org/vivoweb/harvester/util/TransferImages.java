@@ -3,16 +3,12 @@
  * All rights reserved.
  * This program and the accompanying materials are made available under the terms of the new BSD license which accompanies this distribution, and is available at http://www.opensource.org/licenses/bsd-license.html
  ******************************************************************************/
-
 package org.vivoweb.harvester.util;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
 import javax.activation.MimetypesFileTypeMap;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.args.ArgDef;
@@ -23,9 +19,9 @@ import org.vivoweb.harvester.util.args.UsageException;
 /**
  * This Class takes the images directory and segregates them in to two folders upload and backup
  * @author Sivananda Reddy Thummala Abbigari, 64254635
+ * @author Christopher Haines (chris@chrishaines.net) - rewriten for harvester v2 using harvester tools
  */
 public class TransferImages {
-	
 	/**
 	 * SLF4J Logger
 	 */
@@ -47,87 +43,77 @@ public class TransferImages {
 	private HashSet<String> employeeIDSet;
 	
 	/**
-	 * Used for efficiently reading Employee ID's's form employeeIDs.txt file
-	 */
-	private BufferedReader bufferReader;
-	
-	/**
 	 * Used for reading files the images directory
 	 */
-	private File folder;
-	
+	private String folder;
 	
 	/**
-	 * Stores the Employee ID's's in a HashSet
-	 * @param path the path to the text file containing Employee ID's
-	 * @throws FileNotFoundException cannot find employeeIDs.txt
-	 * @throws IOException error reading from employeeIDs.txt
-	 * 
+	 * only operate on image mime types
 	 */
-	private void getEmployeeIDs(String path) throws FileNotFoundException, IOException {		
-		String tempLine;				
-		try {
-			this.bufferReader = new BufferedReader(new FileReader(path));						
-			while((tempLine = this.bufferReader.readLine()) != null) 
-			{				
-				this.employeeIDSet.add(tempLine.substring(0, 8));
-			}
-			this.bufferReader.close();
-		} catch(FileNotFoundException e) {
-			throw new IOException(e);
-		} catch(IOException e) {
-			throw new IOException(e);
-		}
+	private boolean checkImageMIMEType;
+	
+	/**
+	 * Command line Constructor
+	 * @param args command line arguments
+	 * @throws IOException error creating task
+	 * @throws UsageException user requested usage message
+	 */
+	private TransferImages(String[] args) throws IOException, UsageException {
+		this(getParser().parse(args));
 	}
 	
-
 	/**
-	 * @throws IOException error executing the "mv" command 
+	 * ArgList Constructor
+	 * @param argList option set of parsed args
 	 */
-	private void transferImages() throws IOException {
+	private TransferImages(ArgList argList) {
+		this(argList.get("p"), argList.get("e"), argList.has("m"));
+	}
 	
-		Process moveFullImageToUploadDirectory;
-		Process moveThumbnailToUploadDirectory;
-		Process moveFullImageToBackUpDirectory;		
-		Process moveThumbnailToBackUpDirectory;
-		String fileName;				
-		try {			
-			for(File f : this.folder.listFiles()) {
-				//if(new MimetypesFileTypeMap().getContentType(f).contains("image")) { //Uncomment this if you need to explicitly check for the mime type of the image 					
-					fileName = f.getName();							
-					if(this.employeeIDSet.contains(fileName.substring(0,8))) {							
-						moveFullImageToUploadDirectory = Runtime.getRuntime().exec("mv " + this.pathToImageScriptDirectory + "/fullImages/" + fileName + " " + this.pathToImageScriptDirectory + "/upload/fullImages/");						
-						moveFullImageToUploadDirectory.waitFor();
-						moveFullImageToUploadDirectory.getInputStream().close();
-						moveFullImageToUploadDirectory.getOutputStream().close();
-						moveFullImageToUploadDirectory.getErrorStream().close();
-						
-						moveThumbnailToUploadDirectory = Runtime.getRuntime().exec("mv " + this.pathToImageScriptDirectory + "/thumbnails/"+"thumbnail" + fileName + " " + this.pathToImageScriptDirectory + "/upload/thumbnails/");																			
-						moveThumbnailToUploadDirectory.waitFor();
-						moveThumbnailToUploadDirectory.getInputStream().close();
-						moveThumbnailToUploadDirectory.getOutputStream().close();
-						moveThumbnailToUploadDirectory.getErrorStream().close();
-					} else {																
-						moveFullImageToBackUpDirectory = Runtime.getRuntime().exec("mv " + this.pathToImageScriptDirectory + "/fullImages/" + fileName + " " + this.pathToImageScriptDirectory + "/backup/fullImages/");						
-						moveFullImageToBackUpDirectory.waitFor();
-						moveFullImageToBackUpDirectory.getInputStream().close();
-						moveFullImageToBackUpDirectory.getOutputStream().close();
-						moveFullImageToBackUpDirectory.getErrorStream().close();
-						
-						moveThumbnailToBackUpDirectory = Runtime.getRuntime().exec("mv " + this.pathToImageScriptDirectory + "/thumbnails/" +"thumbnail" + fileName + " " + this.pathToImageScriptDirectory + "/backup/thumbnails/");												
-						moveThumbnailToBackUpDirectory.waitFor();
-						moveThumbnailToBackUpDirectory.getInputStream().close();
-						moveThumbnailToBackUpDirectory.getOutputStream().close();
-						moveThumbnailToBackUpDirectory.getErrorStream().close(); 												
-					} 
-				//}
-			}
-		} catch(IOException e) {
-			throw new IOException(e);
-		} catch(InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	/**
+	 * Library style Constructor
+	 * @param pathToImageScriptFolder path to folder containing image scripts
+	 * @param pathToEmployeeIDsFile path to file containing employee ids
+	 * @param mimeTypeCheck only operate on image mime types
+	 */
+	public TransferImages(String pathToImageScriptFolder, String pathToEmployeeIDsFile, boolean mimeTypeCheck) {
+		this.pathToImageScriptDirectory = pathToImageScriptFolder;
+		this.pathToEmployeeIDsFile = pathToEmployeeIDsFile;
+		this.employeeIDSet = new HashSet<String>();
+		this.folder = this.pathToImageScriptDirectory + "/fullImages";
+		this.checkImageMIMEType = mimeTypeCheck;
+	}
+	
+	/**
+	 * Library style Constructor
+	 * @param pathToImageScriptFolder path to folder containing image scripts
+	 * @param pathToEmployeeIDsFile path to file containing employee ids
+	 */
+	public TransferImages(String pathToImageScriptFolder, String pathToEmployeeIDsFile) {
+		this(pathToImageScriptFolder, pathToEmployeeIDsFile, false);
+	}
+	
+	/**
+	 * Executes
+	 * @throws IOException error reading files
+	 */
+	public void execute() throws IOException {
+		for(String line : StringUtils.split(FileAide.getTextContent(this.pathToEmployeeIDsFile), System.lineSeparator())) {
+			this.employeeIDSet.add(line.substring(0, 8));
 		}
+		for(String f : FileAide.getChildren(this.folder)) {
+			if(this.checkImageMIMEType && new MimetypesFileTypeMap().getContentType(f).contains("image")) {
+				String fileName = FileAide.getFileName(f);
+				if(this.employeeIDSet.contains(fileName.substring(0, 8))) {
+					FileAide.moveFile(this.pathToImageScriptDirectory + "/fullImages/" + fileName, this.pathToImageScriptDirectory + "/upload/fullImages/" + fileName);
+					FileAide.moveFile(this.pathToImageScriptDirectory + "/thumbnails/" + fileName, this.pathToImageScriptDirectory + "/upload/thumbnails/" + fileName);
+				} else {
+					FileAide.moveFile(this.pathToImageScriptDirectory + "/fullImages/" + fileName, this.pathToImageScriptDirectory + "/backup/fullImages/" + fileName);
+					FileAide.moveFile(this.pathToImageScriptDirectory + "/thumbnails/thumbnail" + fileName, this.pathToImageScriptDirectory + "/backup/thumbnails/thumbnail" + fileName);
+				}
+			}
+		}
+		log.info("Transfered images to upload and backup directories!");
 	}
 	
 	/**
@@ -138,52 +124,10 @@ public class TransferImages {
 		ArgParser parser = new ArgParser("TransferImages");
 		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("pathToImageScriptDirectory").withParameter(true, "PATH").setDescription("path to the Image Script Directory").setRequired(true));
 		parser.addArgument(new ArgDef().setShortOption('e').setLongOpt("pathToEmployeedIDsFile").withParameter(true, "PATH").setDescription("path to the EmployeeID's file").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('m').setLongOpt("checkImageMimeType").setDescription("only operate on image mime types").setRequired(true));
 		return parser;
 	}
 	
-	/**
-	 * Command line Constructor
-	 * @param args command line arguments
-	 * @throws UsageException 
-	 * @throws IOException 
-	 * @throws IllegalArgumentException 
-	 */
-	private TransferImages(String[] args) throws IllegalArgumentException, IOException, UsageException {
-		this(getParser().parse(args));
-	}
-	
-	/**
-	 * ArgList Constructor
-	 * @param argList option set of parsed args
-	 */
-	private TransferImages(ArgList argList) {
-		this(argList.get("p"), argList.get("e"));		
-	}
-	
-	/**
-	 * Library style Constructor
-	 * @param pathToImageScriptFolder
-	 */
-	public TransferImages(String pathToImageScriptFolder, String pathToEmployeeIDsFile) 
-	{
-		this.pathToImageScriptDirectory = pathToImageScriptFolder;
-		this.pathToEmployeeIDsFile = pathToEmployeeIDsFile; 
-		this.employeeIDSet = new HashSet<String>();
-		this.folder = new File(this.pathToImageScriptDirectory + "/fullImages");
-	}
-	
-	/**
-	 * @throws IOException 
-	 * 
-	 */
-	public void execute() throws IOException
-	{
-		
-		getEmployeeIDs(this.pathToEmployeeIDsFile);		
-		transferImages();
-		log.info("Transfered images to upload and backup directories!");
-	}
-		
 	/**
 	 * Main method
 	 * @param args command line arguments

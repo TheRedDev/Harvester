@@ -7,6 +7,7 @@ package org.vivoweb.harvester.util.args;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -29,7 +30,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Parsed arguments from commandline and config files
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  * @author Nicholas Skaggs (nskaggs@ctrip.ufl.edu)
  */
 public class ArgList {
@@ -173,7 +174,7 @@ public class ArgList {
 		if(argdef == null) {
 			throw new IllegalArgumentException("No such parameter: "+arg);
 		}
-		if(!argdef.hasParameter()) {
+		if(!argdef.hasParameter() && !argdef.hasParameterBoolean()) {
 			throw new IllegalArgumentException(arg + " has no parameters");
 		}
 		if(argdef.hasParameters()) {
@@ -200,6 +201,19 @@ public class ArgList {
 			retVal = retVal.trim();
 		}
 		return retVal;
+	}
+	
+	/**
+	 * Gets the value of the argument or default value if not set, error if no default value and no value
+	 * @param arg argument to get
+	 * @return the value as a value
+	 */
+	public char getChar(String arg) {
+		String separatorValue = get(arg);
+		if(separatorValue.length() != 1) {
+			throw new IllegalArgumentException("Invalid Char Value: it must be a single character");
+		}
+		return separatorValue.charAt(0);
 	}
 	
 	/**
@@ -354,8 +368,36 @@ public class ArgList {
 	}
 	
 	/**
+	 * Determines if the given argument has been set, has a default value, and that value (lowercased) equals 'true', 't', 'yes', or 'y'
+	 * @param arg the argument
+	 * @return true if a value has been set (from any of command line, config files, or default value) and that value (lowercased) equals 'true', 't', 'yes', or 'y'
+	 */
+	public boolean getFlag(String arg) {
+		ArgDef argdef = this.argParser.getOptMap().get(arg);
+		if(argdef == null) {
+			throw new IllegalArgumentException("No such parameter: "+arg);
+		}
+		if(!argdef.hasParameterBoolean()) {
+			if(argdef.isParameterValueMap()) {
+				throw new IllegalArgumentException(arg + " is a value map not a boolean flag, use getValueMap() or getMultiValueMap()");
+			} else if(!argdef.hasParameters() && argdef.hasParameter()) {
+				throw new IllegalArgumentException(arg + " is not a boolean flag, use get()");
+			}
+			throw new IllegalArgumentException(arg + " is not a boolean flag, use getAll()");
+		}
+		if(!has(arg)) {
+			return false;
+		}
+		String value = get(arg);
+		if(value == null) {
+			return true;
+		}
+		return Arrays.asList("true", "t", "yes", "y").contains(value.toLowerCase());
+	}
+	
+	/**
 	 * Config Parser for Tasks
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private class ConfigParser extends DefaultHandler {
 		/**

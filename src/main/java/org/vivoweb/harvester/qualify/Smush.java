@@ -10,21 +10,19 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.InitLog;
+import org.vivoweb.harvester.util.IterableAdaptor;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
 import org.vivoweb.harvester.util.repo.MemJenaConnect;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.NodeIterator;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.ResIterator;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
-import com.hp.hpl.jena.shared.Lock;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.shared.Lock;
 
 /**
  * Smush
@@ -150,54 +148,41 @@ public class Smush {
 		Property prop = inModel.createProperty(property);
 		inModel.enterCriticalSection(Lock.READ);
 		try {
-			NodeIterator objIt = inModel.listObjectsOfProperty(prop);
-			try {
-				while(objIt.hasNext()) {
-					RDFNode obj = objIt.next();
-					ResIterator subjIt = inModel.listSubjectsWithProperty(prop, obj);
-					try {
-						boolean first = true;
-						Resource smushToThisResource = null;
-						while (subjIt.hasNext()) {
-							Resource subj = subjIt.next();
-							if(subj.getNameSpace().equals(ns) || ns == null){
-								if (first) {
-									smushToThisResource = subj;
-									first = false;
-									log.debug("Smush running for <"+subj+">");
-								} else {
-									log.trace("Smushing <"+subj+"> into <"+smushToThisResource+">");
-									StmtIterator stmtIt = inModel.listStatements(subj,(Property)null,(RDFNode)null);
-									try {
-										while(stmtIt.hasNext()) {
-											Statement stmt = stmtIt.next();
-											log.trace("Changing <"+stmt.getPredicate()+"> <"+stmt.getObject()+"> from <"+stmt.getSubject()+"> to <"+smushToThisResource+">");
-											subsModel.add(stmt.getSubject(), stmt.getPredicate(), stmt.getObject());
-											addsModel.add(smushToThisResource, stmt.getPredicate(), stmt.getObject());
-										}
-									} finally {
-										stmtIt.close();
-									}
-									stmtIt = inModel.listStatements((Resource) null, (Property)null, subj);
-									try {
-										while(stmtIt.hasNext()) {
-											Statement stmt = stmtIt.next();
-											log.trace("Changing <"+stmt.getSubject()+"> <"+stmt.getPredicate()+"> from <"+stmt.getObject()+"> to <"+smushToThisResource+">");
-											subsModel.add(stmt.getSubject(), stmt.getPredicate(), stmt.getObject());
-											addsModel.add(stmt.getSubject(), stmt.getPredicate(), smushToThisResource);
-										}
-									} finally {
-										stmtIt.close();
-									}
-								}
+			// for each object value of the given property
+			for(RDFNode obj : IterableAdaptor.adapt(inModel.listObjectsOfProperty(prop))) {
+				boolean first = true;
+				Resource smushToThisResource = null;
+				// loop through subjects with this property-object pairing 
+				for(Resource subj : IterableAdaptor.adapt(inModel.listSubjectsWithProperty(prop, obj))) {
+					// only look at subject resources in the requested namespace if one specified
+					if(subj.getNameSpace().equals(ns) || ns == null){
+						// the first subject resource is found and recorded
+						if (first) {
+							smushToThisResource = subj;
+							first = false;
+							log.debug(" Smushing all instances for ["+obj+"] into <"+subj+">");
+						// the rest are smushed into the first resource
+						} else {
+							log.trace("   <"+subj+">");
+							// for each statement of the to-be-smushed resource
+							for(Statement stmt : IterableAdaptor.adapt(inModel.listStatements(subj,(Property)null,(RDFNode)null))) {
+								log.trace("     <"+stmt.getPredicate()+"> <"+stmt.getObject()+">");
+								// save the current statement to the 'subtraction' model
+								subsModel.add(stmt.getSubject(), stmt.getPredicate(), stmt.getObject());
+								// save the statement with new subject resource to the 'addition' model
+								addsModel.add(smushToThisResource, stmt.getPredicate(), stmt.getObject());
+							}
+							// for each statement with to the to-be-smushed resource as the object
+							for(Statement stmt : IterableAdaptor.adapt(inModel.listStatements((Resource) null, (Property)null, subj))) {
+								log.trace("     <"+stmt.getSubject()+"> <"+stmt.getPredicate()+">");
+								// save the current statement to the 'subtraction' model
+								subsModel.add(stmt.getSubject(), stmt.getPredicate(), stmt.getObject());
+								// save the statement with new object resource to the 'addition' model
+								addsModel.add(stmt.getSubject(), stmt.getPredicate(), smushToThisResource);
 							}
 						}
-					} finally {
-						subjIt.close();
 					}
 				}
-			} finally {
-				objIt.close();
 			}
 		} finally {
 			inModel.leaveCriticalSection();
@@ -213,8 +198,20 @@ public class Smush {
 		for(String runName : this.inputPredicates) {
 			findSmushResourceChanges(this.inputJC, subsJC, addsJC, runName, this.namespace);
 		}
+		try {
+			log.debug("Subs:\n" + subsJC.exportRdfToString());
+		} catch(IOException e) {
+			// Do Nothing
+		}
+		try {
+			log.debug("Adds:\n" + addsJC.exportRdfToString());
+		} catch(IOException e) {
+			// Do Nothing
+		}
 		if(this.inPlace){
+			log.trace("removing old statements");
 			this.inputJC.removeRdfFromJC(subsJC);
+			log.trace("inserting new statements");
 			this.inputJC.loadRdfFromJC(addsJC);
 		}
 		if(this.outputJena != null) {

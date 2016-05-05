@@ -10,18 +10,21 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.sdb.SDBFactory;
-import com.hp.hpl.jena.sdb.Store;
-import com.hp.hpl.jena.sdb.StoreDesc;
-import com.hp.hpl.jena.sdb.sql.SDBConnectionFactory;
-import com.hp.hpl.jena.sdb.util.StoreUtils;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.sdb.SDBFactory;
+import org.apache.jena.sdb.Store;
+import org.apache.jena.sdb.StoreDesc;
+import org.apache.jena.sdb.sql.MySQLEngineType;
+import org.apache.jena.sdb.sql.SDBConnectionFactory;
+import org.apache.jena.sdb.store.DatabaseType;
+import org.apache.jena.sdb.store.LayoutType;
+import org.apache.jena.sdb.util.StoreUtils;
 
-import com.hp.hpl.jena.sparql.core.Quad;
+import org.apache.jena.sparql.core.Quad;
 
 /**
  * Connection Helper for SDB Jena Models
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class SDBJenaConnect extends DBJenaConnect {
 	/**
@@ -36,6 +39,10 @@ public class SDBJenaConnect extends DBJenaConnect {
 	 * the SDB layout scheme
 	 */
 	private final String dbLayout;
+	/**
+	 * the mysql engine type if needed
+	 */
+	private final String engineType;
 	
 	/**
 	 * Clone Constructor
@@ -46,7 +53,8 @@ public class SDBJenaConnect extends DBJenaConnect {
 	private SDBJenaConnect(SDBJenaConnect original, String modelName) throws IOException {
 		super(original);
 		this.dbLayout = original.dbLayout;
-		this.store = connectStore(original.buildConnection(), original.getDbType(), this.dbLayout);
+		this.engineType = original.engineType;
+		this.store = connectStore(original.buildConnection(), original.getDbType(), this.dbLayout, this.engineType);
 		init(modelName);
 	}
 	
@@ -76,9 +84,26 @@ public class SDBJenaConnect extends DBJenaConnect {
 	 * @throws IOException error connecting to store
 	 */
 	public SDBJenaConnect(String dbUrl, String dbUser, String dbPass, String dbType, String dbClass, String dbLayout, String modelName) throws IOException {
+		this(dbUrl, dbUser, dbPass, dbType, dbClass, dbLayout, modelName, null);
+	}
+	
+	/**
+	 * Constructor (SDB Named Model)
+	 * @param dbUrl jdbc connection url
+	 * @param dbUser username to use
+	 * @param dbPass password to use
+	 * @param dbType database type ex:"MySQL"
+	 * @param dbClass jdbc driver class
+	 * @param dbLayout sdb layout type
+	 * @param modelName the model to connect to
+	 * @param engineType the mysql engine type if needed
+	 * @throws IOException error connecting to store
+	 */
+	public SDBJenaConnect(String dbUrl, String dbUser, String dbPass, String dbType, String dbClass, String dbLayout, String modelName, String engineType) throws IOException {
 		super(dbUrl, dbUser, dbPass, dbType, dbClass);
 		this.dbLayout = dbLayout;
-		this.store = connectStore(buildConnection(), getDbType(), this.dbLayout);
+		this.engineType = engineType;
+		this.store = connectStore(buildConnection(), getDbType(), this.dbLayout, this.engineType);
 		init(modelName);
 	}
 	
@@ -90,7 +115,23 @@ public class SDBJenaConnect extends DBJenaConnect {
 	 * @return the store
 	 */
 	protected static Store connectStore(Connection conn, String dbType, String dbLayout) {
-		return SDBFactory.connectStore(SDBConnectionFactory.create(conn), new StoreDesc(dbLayout, dbType));
+		return connectStore(conn, dbType, dbLayout, null);
+	}
+	
+	/**
+	 * Connect to an SDB store
+	 * @param conn JDBC Connection
+	 * @param dbType Jena database type
+	 * @param dbLayout sdb layout type
+	 * @param engineType the mysql engineType if needed
+	 * @return the store
+	 */
+	protected static Store connectStore(Connection conn, String dbType, String dbLayout, String engineType) {
+		StoreDesc desc = new StoreDesc(dbLayout, dbType);
+		if(desc.getDbType()==DatabaseType.MySQL && desc.getLayout()==LayoutType.LayoutSimple) {
+		  desc.engineType = MySQLEngineType.convert((engineType == null)?"InnoDB":engineType);
+		}
+		return SDBFactory.connectStore(SDBConnectionFactory.create(conn), desc);
 	}
 	
 	/**

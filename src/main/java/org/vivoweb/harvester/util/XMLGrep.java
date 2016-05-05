@@ -1,6 +1,5 @@
 package org.vivoweb.harvester.util;
 
-import java.io.File;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +7,7 @@ import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * @author kuppuraj, Mayank Saini
@@ -42,41 +42,30 @@ public class XMLGrep {
 	 * xpath expression to filter files
 	 */
 	private String expression;
-		
+	
 	/**
 	 * Constructor
 	 * @param src directory to read files from
 	 * @param dest directory to move files from
-	 * @param xpath expression to filter
+	 * @param altDest Input alternate destination for items that do not match the expression
+	 * @param errorDest Destination for items with malformed XML or which generate errors
+	 * @param value base for xpath expression to filter files
+	 * @param name name to put into xpath expression
 	 */
 	public XMLGrep(String src, String dest, String altDest, String errorDest, String value, String name) {
 		this.src = src;
 		this.dest = dest;
 		this.errorDest = errorDest;
 		
-		if (altDest != null) {
+		if(altDest != null) {
 			this.altDest = altDest;
 		}
 		
-		if(value == null) 
-		{
-			this.expression ="//"+name;
-			
+		if(value == null) {
+			this.expression = "//" + name;
+		} else {
+			this.expression = "//" + MathAide.nvl(name, "*") + "[. = '" + value + "']";
 		}
-		else 
-		{
-			if(name == null)
-			{
-				this.expression = "//*[. ='"+ value + "']";
-			} 
-			else 
-			{
-				this.expression = "//" + name + "[. = '" + value + "']";
-			}
-			
-		}
-		
-		
 	}
 	
 	/**
@@ -98,151 +87,68 @@ public class XMLGrep {
 	}
 	
 	/**
-	 * 
-	 * @param myFile
-	 * @param exp
-	 * @return boolean
-	 * @throws IOException
+	 * Find the pattern within a specific file
+	 * @param myFile the file to search within
+	 * @param exp the expression to search for
+	 * @return boolean true if found, false otherwise
+	 * @throws IOException error reading file
 	 */
-	public boolean findInFile(File myFile, String exp) throws IOException {
-		
-		String result = null;
-		
-		try
-		{
-			result = XPathTool.getXPathResult(myFile.getPath(), exp);
-		}
-		catch (IOException e)
-		{
-			log.error("Exception in XPathTool: Malformed XML, or bad Parser Configuration");
-			log.debug("Moving offending file: " + myFile.getPath() + " to error destination: " + this.errorDest);
-			moveFile(myFile, this.errorDest);
+	public boolean findInFile(String myFile, String exp) throws IOException {
+		try {
+			return StringUtils.isNotEmpty(XMLAide.getXPathResult(myFile, exp));
+		} catch(IOException e) {
+			log.error("Exception in XPathTool: Malformed XML, or bad Parser Configuration", e);
+			log.debug("Moving offending file: " + myFile + " to error destination: " + this.errorDest);
+			FileAide.moveFile(myFile, this.errorDest);
 			return false;
-		}
-		catch (IllegalArgumentException e)
-		{
+		} catch(IllegalArgumentException e) {
 			log.error("Exception in XPathTool: Invalid XPath Expression.");
 			return false;
 		}
-			
-		if(result != null && !result.isEmpty()) {
-			return true;
-		}
-		
-		return false;
-	}
-	
-	/**
-	 * @param src
-	 * @param dest
-	 * @param xpathExpression
-	 * @throws IOException 
-	 */
-	@SuppressWarnings("javadoc")
-	public static void moveFile(File src, String dest) throws IOException {
-		String newpath;
-		
-		if(! FileAide.exists(dest)) {
-			FileAide.createFolder(dest);
-		}
-		
-		if(! dest.endsWith("/")) {
-			newpath = dest.concat("/").concat(src.getName());
-		}
-		else {
-			newpath = dest.concat(src.getName());
-		}
-		
-		FileAide.createFile(newpath);
-		FileAide.setTextContent(newpath, FileAide.getTextContent(src.getPath()));
-		FileAide.delete(src.getPath());
-
 	}
 	
 	/**
 	 * Runs the XMLGrep
-	 * @throws IOException error executing
 	 */
 	// TODO: Clean up logic and try-catch blocks. Document. Stopgap solution implemented quickly. -RPZ 08/15/2012
-	public void execute() throws IOException {
-
-		boolean bSourceIsFolder, bFileIsFolder, bFileIsFile, bFileHasNotMoved;
-		
-		try 
-		{
-			try{ bSourceIsFolder = FileAide.isFolder(this.src); } 
-			catch (Exception e)	{
-				log.error(e.getMessage());
-				throw new IOException(e);
-			} 
-			
-			try{ bFileIsFile = FileAide.isFile(this.src); }
-			catch (Exception e)	{
-				log.error(e.getMessage());
-				throw new IOException(e);
-			}
-			
-			if(bSourceIsFolder) 
-			{
-				File dir = new File(this.src);
-				File[] files = dir.listFiles();
-				for(File file : files) 
-				{
-					try { bFileIsFolder = FileAide.isFolder(file.toString()); } 
-					catch (Exception e)	{
-						log.error(e.getMessage());
-						continue;
-					}
-						
-					// If the current file is a directory, skip it
-					if (!bFileIsFolder) 
-					{
-						if (findInFile(file,this.expression)) 
-						{
-							//If the current file matches the xpath expression then move it
-							moveFile(file,this.dest);
-						} 
-						else 
-						{
-							//Check for case where no altDest provided, or altDest = srcDest
-							if (this.src.equals(this.altDest) || this.altDest.equals("") )
-							{
-								// Ignore the file, as we wish to leave it in place.
-							}
-							//If the current file does not match the xpath expression then
-							//check to see if there is an alternate destination defined
-							else if (this.altDest != null) 
-							{
-								try { bFileHasNotMoved = FileAide.isFile(file.getPath()); }
-								catch (Exception e)	{
-									log.error(e.getMessage());
-									continue;
-								}
-								
-								//Alternate destination defined so move file to alternate destination
-								//Protect the file from trying to move if error in Parsing caused it to move already.
-								if(bFileHasNotMoved)
-								{
-									moveFile(file,this.altDest);
+	public void execute() {
+		try {
+			if(FileAide.isFolder(this.src)) {
+				for(String file : FileAide.getChildren(this.src)) {
+					try {
+						// If the current file is a directory, skip it
+						if(!FileAide.isFolder(file)) {
+							if(findInFile(file, this.expression)) {
+								//If the current file matches the xpath expression then move it
+								FileAide.moveFile(file, this.dest);
+							} else {
+								//Check for case where no altDest provided, or altDest = srcDest
+								if(this.src.equals(this.altDest) || this.altDest.equals("")) {
+									// Ignore the file, as we wish to leave it in place.
+								} else if(this.altDest != null) {
+									//If the current file does not match the xpath expression then
+									//check to see if there is an alternate destination defined
+									//Protect the file from trying to move if error in Parsing caused it to move already.
+									if(FileAide.isFile(file)) {
+										FileAide.moveFile(file, this.altDest);
+									}
 								}
 							}
 						}
+					} catch(IOException e) {
+						log.error("Error: ", e);
+						continue;
 					}
 				}
-			} 
-			else if(bFileIsFile) 
-			{
-				File file = new File(this.src);
-				if(findInFile(file,this.expression)) 
-				{
-					moveFile(file,this.dest);
+			} else if(FileAide.isFile(this.src)) {
+				if(findInFile(this.src, this.expression)) {
+					FileAide.moveFile(this.src, this.dest);
 				}
 			}
 		} catch(IOException e) {
-			System.out.println(e);
-			log.error(e.getMessage());
+			log.error("Error: ", e);
 		}
-
+		
 	}
 	
 	/**

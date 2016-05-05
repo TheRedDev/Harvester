@@ -26,7 +26,7 @@ import org.xml.sax.SAXException;
  * PubMed Website.
  * @author Stephen V. Williams (swilliams@ctrip.ufl.edu)
  * @author Dale R. Scheppler (dscheppler@ctrip.ufl.edu)
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class PubmedHTTPFetch extends NIHFetch {
 	/**

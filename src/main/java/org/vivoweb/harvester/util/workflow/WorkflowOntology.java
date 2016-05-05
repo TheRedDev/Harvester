@@ -5,11 +5,11 @@
  ******************************************************************************/
 package org.vivoweb.harvester.util.workflow;
 
-import com.hp.hpl.jena.rdf.model.*;
-import com.hp.hpl.jena.ontology.*; 
+import org.apache.jena.rdf.model.*;
+import org.apache.jena.ontology.*; 
 /**
  * Vocabulary definitions
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class WorkflowOntology {
     /** <p>The ontology model that holds the vocabulary terms</p> */

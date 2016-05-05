@@ -37,7 +37,7 @@ import org.vivoweb.harvester.util.args.UsageException;
 
 /**
  * Clone a database from one jdbc connection to another
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class DatabaseClone {
 	/**

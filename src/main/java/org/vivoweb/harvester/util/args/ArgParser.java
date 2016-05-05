@@ -16,10 +16,11 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
+import org.vivoweb.harvester.util.MathAide;
 
 /**
  * Argument Description Listing
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class ArgParser {
 	/**
@@ -185,5 +186,22 @@ public class ArgParser {
 		formatter.printHelp(pw, HelpFormatter.DEFAULT_WIDTH, this.app, null, getOptions(), HelpFormatter.DEFAULT_LEFT_PAD, HelpFormatter.DEFAULT_DESC_PAD, null, false);
 		pw.flush();
 		return baos.toString();
+	}
+	
+
+	/**
+	 * Get the default value of an argument
+	 * @param argKey the arg key to get default value for
+	 * @return the default value (null if not set) of the given arg key 
+	 */
+	public String getDefaultValue(String argKey) {
+		String retVal = null;
+		for(ArgDef argDef : getArgDefs()) {
+			if(argKey.equalsIgnoreCase(MathAide.nvl(argDef.getShortOption(), "").toString()) || argKey.equalsIgnoreCase(MathAide.nvl(argDef.getLongOption(), ""))) {
+				retVal = argDef.getDefaultValue();
+				break;
+			}
+		}
+		return retVal;
 	}
 }

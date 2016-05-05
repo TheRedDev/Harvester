@@ -16,7 +16,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.vfs.FileSystemException;
 import org.h2.tools.Csv;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +49,6 @@ public class CSVtoJDBC {
 	 * Field names into which to output
 	 */
 	private List<String> fieldNames;
-	
-	private String append;
 	
 	/**
      * Library style initialyzer
@@ -207,14 +204,11 @@ public class CSVtoJDBC {
                 rowID++;
             }
             log.info("Records imported: "+ rowID);
-        } catch(FileSystemException e) {
-            throw new IOException(e);
         } catch(SQLException e) {        	 
             throw new IOException(e);
-        } catch (NullPointerException e) {
+        } catch(NullPointerException e) {
         	System.err.println("NPE execption reading data");
-        	System.err.println("Insert Command: "+ insertCommand.toString());
-        	 
+        	System.err.println("Insert Command: "+ insertCommand);
         }
     } 
 

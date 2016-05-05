@@ -9,7 +9,7 @@ import org.vivoweb.harvester.util.MathAide;
 
 /**
  * Normalized Damerau-Levenshtein Difference Score Algorithm
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class NormalizedDamerauLevenshteinDifference implements Algorithm {
 	

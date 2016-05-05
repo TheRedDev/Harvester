@@ -24,7 +24,7 @@ import ORG.oclc.oai.harvester2.app.RawWrite;
 /**
  * Class for harvesting from OAI Data Sources
  * @author Dale Scheppler
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class OAIFetch implements RecordStreamOrigin {
 	/**

@@ -13,13 +13,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * Simple Web Tools
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class WebAide {
 
     /**
      * Get the contents of a url
-     * @param url the url to grab
+     * @param url the url to read
      * @return the contents
      * @throws MalformedURLException invalid url
      * @throws IOException error reading
@@ -34,6 +35,13 @@ public class WebAide {
         return sb.toString();
     }
 
+    /**
+     * Get an input stream to read the contents of a url
+     * @param url the url to read
+     * @return an input stream for the contents
+     * @throws MalformedURLException invalid url
+     * @throws IOException error reading
+     */
     public static InputStream getInputStream(String url) throws MalformedURLException, IOException {
        return new URL(url).openStream();
     }

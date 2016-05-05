@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Connection Helper for Database Backed Jena Models
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public abstract class DBJenaConnect extends JenaConnect {
 	/**

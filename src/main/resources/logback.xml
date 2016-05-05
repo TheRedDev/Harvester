@@ -88,6 +88,16 @@
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>
   </logger>
+  <logger name="org.vivoweb.harvester.util.repo" level="WARN" additivity="false">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.vivoweb.harvester.util.FileAide" level="WARN" additivity="false">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
   <logger name="org.vivoweb.test.harvester" level="${test-level:-ALL}">
     <appender-ref ref="Console"/>
     <appender-ref ref="Error"/>
@@ -109,7 +119,32 @@
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>
   </logger>
-  <logger name="org.apache.commons.vfs" level="${vfs-level:-ERROR}">
+  <logger name="com.hp.hpl.jena.tdb" level="${tdb-level:-ERROR}">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.apache.jena" level="${jena-level:-INFO}">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.apache.jena.rdf.model.impl.RDFDefaultErrorHandler" level="${rdf-error-level:-ERROR}">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.apache.jena.arq" level="${arq-level:-ERROR}">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.apache.jena.tdb" level="${tdb-level:-ERROR}">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.apache.commons.vfs2" level="${vfs-level:-ERROR}">
     <appender-ref ref="Console"/>
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>

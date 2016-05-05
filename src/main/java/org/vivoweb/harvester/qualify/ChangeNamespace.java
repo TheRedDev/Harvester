@@ -18,16 +18,16 @@ import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
-import com.hp.hpl.jena.ontology.OntModel;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.ResourceFactory;
-import com.hp.hpl.jena.vocabulary.OWL;
+import org.apache.jena.ontology.OntModel;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.vocabulary.OWL;
 
 /**
  * Changes the namespace for all matching uris
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class ChangeNamespace {
 	/**
@@ -55,7 +55,7 @@ public class ChangeNamespace {
 	 */
 	private final boolean errorLogging;
 	
-	/*
+	/**
 	 * create sameAs statement 
 	 */
 	private final boolean sameAs;
@@ -86,6 +86,14 @@ public class ChangeNamespace {
 		);
 	}
 	
+	/**
+	 * Constructor
+	 * @param model model to change uris in
+	 * @param vivo model in which to search for previously used uris
+	 * @param oldName old namespace
+	 * @param newName new namespace
+	 * @param errorLog log error messages for changed nodes
+	 */
 	public ChangeNamespace(JenaConnect model, JenaConnect vivo, String oldName, String newName, boolean errorLog) {
 		this(model, vivo, oldName, newName,  errorLog, false);
 	}
@@ -97,6 +105,7 @@ public class ChangeNamespace {
 	 * @param oldName old namespace
 	 * @param newName new namespace
 	 * @param errorLog log error messages for changed nodes
+	 * @param sameAs create sameAs statement
 	 */
 	public ChangeNamespace(JenaConnect model, JenaConnect vivo, String oldName, String newName, boolean errorLog, boolean sameAs) {
 		if(model == null) {
@@ -150,9 +159,8 @@ public class ChangeNamespace {
 	 * @param namespace the namespace
 	 * @param models models to check in
 	 * @return the uri
-	 * @throws IOException error connecting
 	 */
-	public static String getUnusedURI(String namespace, OntModel... models) throws IOException {
+	public static String getUnusedURI(String namespace, OntModel... models) {
 		if((namespace == null) || namespace.equals("")) {
 			throw new IllegalArgumentException("namespace cannot be empty");
 		}
@@ -181,6 +189,7 @@ public class ChangeNamespace {
 	 * @param oldNamespace the old namespace
 	 * @param newNamespace the new namespace
 	 * @param errorLog log error messages for changed nodes
+	 * @param sameAs write an owl:sameAs statement for each rename
 	 * @throws IOException error connecting
 	 */
 	public static void changeNS(JenaConnect model, JenaConnect vivo, String oldNamespace, String newNamespace, boolean errorLog, boolean sameAs) throws IOException {
@@ -205,6 +214,7 @@ public class ChangeNamespace {
 	 * @param oldNamespace the old namespace
 	 * @param newNamespace the new namespace
 	 * @param errorLog log error messages for changed nodes
+	 * @param sameAs write an owl:sameAs statement for each rename
 	 * @throws IOException error connecting
 	 */
 	private static void batchRename(JenaConnect model, JenaConnect vivo, String oldNamespace, String newNamespace, boolean errorLog, boolean sameAs) throws IOException {
@@ -246,11 +256,15 @@ public class ChangeNamespace {
 			Resource res = model.getJenaModel().getResource(sub);
 			float percent = Math.round(10000f * count / total) / 100f;
 			log.trace("(" + count + "/" + total + ": " + percent + "%): Finding unused URI for resource <" + res + ">");
-			String uri = getUnusedURI(newNamespace, vivo, model);			 
-	        log.debug("Resource <" + res.getURI() + "> was found and renamed to new uri <" + uri + ">!");
+			String uri = getUnusedURI(newNamespace, vivo, model);
+			if(errorLog) {
+				log.error("Resource <" + res.getURI() + "> was found and renamed to new uri <" + uri + ">!");
+			} else {
+				log.debug("Resource <" + res.getURI() + "> was found and renamed to new uri <" + uri + ">!");
+			}
 			 
 			RenameResources.renameResource(res, uri);
-			if (sameAs) {
+			if(sameAs) {
 			   Resource newRes = model.getJenaModel().getResource(uri); 
 			   model.getJenaModel().add(newRes, OWL.sameAs, res);
 		    }

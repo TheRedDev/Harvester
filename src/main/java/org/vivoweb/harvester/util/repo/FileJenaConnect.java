@@ -8,21 +8,27 @@ package org.vivoweb.harvester.util.repo;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.vivoweb.harvester.util.FileAide;
 
 /**
  * Wraps a file an RDF File as a JenaConnect
- * @author Christopher Haines hainesc@ufl.edu
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class FileJenaConnect extends MemJenaConnect {
 	/**
 	 * SLF4J Logger
 	 */
+	@SuppressWarnings("hiding")
 	private static Logger log = LoggerFactory.getLogger(FileJenaConnect.class);
+	
 	/**
-	 * 
+	 * the rdf file we are wrapping around
 	 */
 	private final String filepath;
+	
+	/**
+	 * the serialization language
+	 */
+	private final String language;
 	
 	/**
 	 * Constructor
@@ -55,19 +61,26 @@ public class FileJenaConnect extends MemJenaConnect {
 	 * @throws IOException error reading file
 	 */
 	public FileJenaConnect(String filepath, String namespace, String language) throws IOException {
-		super(FileAide.getInputStream(filepath), namespace, language);
+		super(null);
+		log.trace("loading data from input...");
+		loadRdfFromFile(filepath, namespace, language);
+		log.trace("model size: "+getDataset().getDefaultModel().size());
 		this.filepath = filepath;
+		this.language = language;
 	}
 	
 	@Override
 	public void sync() {
-		log.trace("Syncronizing the model...");
-		try {
-			exportRdfToFile(this.filepath);
-			log.trace("Syncronization of model complete");
-		} catch(IOException e) {
-			log.error("Failed to syncronize the model!");
-			log.debug("Stacktrace:",e);
+		if(this.filepath != null) {
+			log.trace("Syncronizing the model..."+this.filepath);
+			try {
+				exportRdfToFile(this.filepath, this.language);
+				log.trace("Syncronization of model complete");
+			} catch(IOException e) {
+				log.error("Failed to syncronize the model!");
+				log.debug("Stacktrace:",e);
+			}
 		}
+		super.sync();
 	}
 }

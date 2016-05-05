@@ -24,7 +24,7 @@ import org.vivoweb.harvester.util.repo.RecordStreamOrigin;
  * the NIH Website.
  * @author Stephen V. Williams (swilliams@ctrip.ufl.edu)
  * @author Dale R. Scheppler (dscheppler@ctrip.ufl.edu)
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public abstract class NIHFetch implements RecordStreamOrigin {
 	/**
@@ -192,7 +192,7 @@ public abstract class NIHFetch implements RecordStreamOrigin {
 		// Eliza: comment out this line
 		// if(env != null) {
 		// Eliza: use this instead
-		if(env != null && resultsCount > 0) {
+		if(resultsCount > 0) {
 			if(recToFetch <= intBatchSize) {
 				fetchRecords(env, "0", "" + recToFetch);
 			} else {

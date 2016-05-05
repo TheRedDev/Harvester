@@ -19,7 +19,7 @@ import org.vivoweb.harvester.util.repo.RecordHandler;
 
 /**
  * Transfer data from one Jena model to another
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  * @author Nicholas Skaggs (nskaggs@ctrip.ufl.edu)
  */
 public class Transfer {

@@ -14,9 +14,9 @@ import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.repo.JenaConnect;
 //import org.vivoweb.harvester.util.repo.RDBJenaConnect;
 import org.vivoweb.harvester.util.repo.SDBJenaConnect;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 
 /** */
 public class ChangeNamespaceTest extends TestCase {
@@ -39,7 +39,7 @@ public class ChangeNamespaceTest extends TestCase {
 		this.namespace = "http://testChNS.vivoweb.org/individual/";
 		this.newNamespace = "http://vivo.test.edu/individual/";
 		this.model = new SDBJenaConnect("jdbc:h2:mem:testChNSh2change", "sa", "", "H2", "org.h2.Driver", "layout2", "testChNSchange");
-		//this.vivo = new RDBJenaConnect("jdbc:h2:mem:testChNSh2vivo;MODE=HSQLDB", "sa", "", "HSQLDB", "org.h2.Driver", "testChNSvivo");
+		this.vivo = new SDBJenaConnect("jdbc:h2:mem:testChNSh2vivo;MODE=HSQLDB", "sa", "", "HSQLDB", "org.h2.Driver", "layout2", "testChNSvivo");
 		String vivoData = "" +
 			"<rdf:RDF" +
 			"\n xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"" +
@@ -131,7 +131,7 @@ public class ChangeNamespaceTest extends TestCase {
 	
 	/**
 	 * Test method for
-	 * {@link org.vivoweb.harvester.qualify.ChangeNamespace#changeNS(org.vivoweb.harvester.util.repo.JenaConnect, org.vivoweb.harvester.util.repo.JenaConnect, java.lang.String, java.lang.String, boolean)
+	 * {@link org.vivoweb.harvester.qualify.ChangeNamespace#changeNS(org.vivoweb.harvester.util.repo.JenaConnect, org.vivoweb.harvester.util.repo.JenaConnect, java.lang.String, java.lang.String, boolean, boolean)
 	 * changeNS(JenaConnect model, JenaConnect vivo, String oldNamespace, String newNamespace, boolean errorLog)}.
 	 * @throws IOException error connecting
 	 */

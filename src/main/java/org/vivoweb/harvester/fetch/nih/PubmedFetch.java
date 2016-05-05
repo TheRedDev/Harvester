@@ -30,7 +30,7 @@ import org.vivoweb.harvester.util.repo.XMLRecordOutputStream;
  * PubMed Website.
  * @author Stephen V. Williams (swilliams@ctrip.ufl.edu)
  * @author Dale R. Scheppler (dscheppler@ctrip.ufl.edu)
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class PubmedFetch extends NIHFetch {
 	/**

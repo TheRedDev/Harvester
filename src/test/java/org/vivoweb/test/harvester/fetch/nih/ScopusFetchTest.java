@@ -5,36 +5,34 @@
  ******************************************************************************/
 package org.vivoweb.test.harvester.fetch.nih;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.ArrayList;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+//import java.io.BufferedReader;
+//import java.io.ByteArrayInputStream;
+//import java.io.IOException;
+//import java.io.InputStreamReader;
+//import java.net.URL;
+//import java.net.URLConnection;
+import java.util.List;
+//import javax.xml.parsers.DocumentBuilder;
+//import javax.xml.parsers.DocumentBuilderFactory;
+//import javax.xml.parsers.ParserConfigurationException;
 import junit.framework.TestCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.vivoweb.harvester.fetch.nih.PubmedFetch;
+//import org.vivoweb.harvester.fetch.nih.PubmedFetch;
 import org.vivoweb.harvester.fetch.nih.ScopusFetch;
 import org.vivoweb.harvester.util.InitLog;
-import org.vivoweb.harvester.util.repo.JenaConnect;
+//import org.vivoweb.harvester.util.repo.JenaConnect;
 import org.vivoweb.harvester.util.repo.JenaRecordHandler;
 import org.vivoweb.harvester.util.repo.MemJenaConnect;
-import org.vivoweb.harvester.util.repo.Record;
+//import org.vivoweb.harvester.util.repo.Record;
 import org.vivoweb.harvester.util.repo.RecordHandler;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.Resource;
+//import org.w3c.dom.Document;
+//import org.w3c.dom.Element;
+//import org.w3c.dom.Node;
+//import org.w3c.dom.NodeList;
+//import org.xml.sax.SAXException;
+//import org.apache.jena.rdf.model.Property;
+//import org.apache.jena.rdf.model.Resource;
 
 /**
  * @author Eliza Chan (elc2013@med.cornell.edu)
@@ -62,9 +60,8 @@ public class ScopusFetchTest extends TestCase {
 	
 	/**
 	 * Test method for constructing query string with publication years
-	 * @throws IOException error
 	 */
-	public final void testConstructPubYearQStr() throws IOException {
+	public final void testConstructPubYearQStr() {
 		log.info("BEGIN testConstructPubYearQStr");
 		try {
 			ScopusFetch s = new ScopusFetch("test@test.com", "", "0", "0", this.rh);
@@ -85,9 +82,8 @@ public class ScopusFetchTest extends TestCase {
 
 	/**
 	 * Test method for constructing complete query string with count and start params
-	 * @throws IOException error
 	 */
-	public final void testConstructCompleteQStr() throws IOException {
+	public final void testConstructCompleteQStr() {
 		log.info("BEGIN testConstructCompleteQStr");
 		try {
 			ScopusFetch s = new ScopusFetch("test@test.com", "", "0", "0", this.rh);
@@ -95,7 +91,7 @@ public class ScopusFetchTest extends TestCase {
 			int count = 200;
 			int totalResults = 250;
 			log.info("Test construct query String list for a total of " + totalResults + " articles");
-			ArrayList<String> testQStrList = s.constructCompleteQStr("", count, start, totalResults);
+			List<String> testQStrList = s.constructCompleteQStr("", count, start, totalResults);
 			String[] expectedQStrList = 
 				{
 					"&count=" + String.valueOf(count) + "&start=" + String.valueOf(start) + "&view=COMPLETE", 

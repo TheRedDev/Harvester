@@ -7,16 +7,15 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.message.BasicNameValuePair;
 import org.jsoup.Jsoup;
-import org.vivoweb.harvester.fetch.linkeddata.util.RdfUtils;
 import org.vivoweb.harvester.fetch.linkeddata.util.xml.XmlUtils;
 import org.vivoweb.harvester.fetch.linkeddata.util.xml.XmlUtils.XmlUtilsException;
+import org.vivoweb.harvester.util.repo.MemJenaConnect;
 
-import com.hp.hpl.jena.rdf.model.Model; 
+import org.apache.jena.rdf.model.Model; 
 
 /**
  * TODO
@@ -202,7 +201,9 @@ public abstract class BasicHttpWorkerRequest<T> implements HttpWorkerRequest<T> 
 		@Override
 		protected Model processResponse(String string)
 				throws HttpWorkerException {
-			return RdfUtils.toModel(string);
+			MemJenaConnect memjc = new MemJenaConnect();
+			memjc.loadRdfFromString(string, null, null);
+			return memjc.getJenaModel();
 		}
 	}
 

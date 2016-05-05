@@ -28,7 +28,7 @@ import org.vivoweb.harvester.util.repo.RecordMetaData.RecordMetaDataType;
 
 /**
  * RecordHandler that stores data in a JDBC Database
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class JDBCRecordHandler extends RecordHandler {
 	/**
@@ -316,8 +316,22 @@ public class JDBCRecordHandler extends RecordHandler {
 	}
 	
 	/**
+	 * Remove all records from this RecordHandler
+	 * @throws IOException i/o error
+	 */
+	@Override
+	public void truncate() throws IOException {
+		try {
+			this.cursor.executeUpdate("delete from " + this.table + "_rmd");
+			this.cursor.executeUpdate("delete from " + this.table);
+		} catch(SQLException e) {
+			throw new IOException(e);
+		}
+	}
+	
+	/**
 	 * Iterator for JDBCRecordHandler
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private class JDBCRecordIterator implements Iterator<Record> {
 		/**
@@ -330,7 +344,7 @@ public class JDBCRecordHandler extends RecordHandler {
 		 * @throws SQLException failed to read records
 		 */
 		protected JDBCRecordIterator() throws SQLException {
-			this.rs = JDBCRecordHandler.this.db.createStatement().executeQuery("select " + JDBCRecordHandler.recordIdField + " from " + JDBCRecordHandler.this.table + " order by " + JDBCRecordHandler.recordIdField);
+			this.rs = getRecordIDsRS();
 		}
 		
 		@Override
@@ -432,6 +446,30 @@ public class JDBCRecordHandler extends RecordHandler {
 		String query = "SELECT " + recordIdField + " FROM " + this.table + " WHERE " + recordIdField + " LIKE '%" + idText + "%' ORDER BY " + recordIdField;
 		try {
 			ResultSet rs = this.cursor.executeQuery(query);
+			while(rs.next()) {
+				retVal.add(rs.getString(1));
+			}
+		} catch(SQLException e) {
+			throw new IOException(e);
+		}
+		return retVal;
+	}
+	
+	/**
+	 * Get all record ids result set
+	 * @return result set with all record ids
+	 * @throws SQLException error reading
+	 */
+	protected ResultSet getRecordIDsRS() throws SQLException {
+		String query = "SELECT " + recordIdField + " FROM " + this.table + " ORDER BY " + recordIdField;
+		return this.cursor.executeQuery(query);
+	}
+	
+	@Override
+	public Set<String> getRecordIDs() throws IOException {
+		Set<String> retVal = new HashSet<String>();
+		try {
+			ResultSet rs = getRecordIDsRS();
 			while(rs.next()) {
 				retVal.add(rs.getString(1));
 			}

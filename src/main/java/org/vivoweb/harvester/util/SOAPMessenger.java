@@ -10,29 +10,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
-import org.w3c.dom.Document;
-import org.xml.sax.InputSource;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
 
 /**
  * Fetches SOAP-XML data from a SOAP compatible site placing the data in the supplied file.
@@ -60,7 +48,7 @@ public class SOAPMessenger {
 	/**
 	 * Inputstream with SOAP style XML message
 	 */
-	private InputStream inputFile;
+	private InputStream inputStream;
 	
 	/**
 	 * String of XML gathered from the inputStream
@@ -86,11 +74,9 @@ public class SOAPMessenger {
 	 * @param reqProperties a map of the properties which go into the header of the request
 	 * @throws IOException error talking with database
 	 */
-	public SOAPMessenger(URL url, String output, String xmlFile,String sesID,Map<String,String> reqProperties) throws IOException {
-		this(url, FileAide.getOutputStream( output ), FileAide.getInputStream( xmlFile ), sesID,  reqProperties);
+	public SOAPMessenger(URL url, String output, String xmlFile, String sesID, Map<String,String> reqProperties) throws IOException {
+		this(url, FileAide.getOutputStream(output), FileAide.getInputStream(xmlFile), sesID, reqProperties);
 	}
-	
-	
 	
 	/**
 	 * Command line Constructor
@@ -121,6 +107,18 @@ public class SOAPMessenger {
 	 * Library style Constructor
 	 * @param url URL to connect with.
 	 * @param output The stream to the output file
+	 * @param xmlString The Soap Message
+	 * @param sesID the authentication sessionID
+	 * @param reqProprties a map of the properties which go into the header of the request
+	 */
+	public SOAPMessenger(URL url, OutputStream output, String xmlString, String sesID, Map<String,String> reqProprties) {
+		this(url, output, IOUtils.toInputStream(xmlString), sesID, reqProprties);
+	}
+	
+	/**
+	 * Library style Constructor
+	 * @param url URL to connect with.
+	 * @param output The stream to the output file
 	 * @param xmlFileStream The stream which points to the Soap Message
 	 * @param sesID the authentication sessionID
 	 * @param reqProprties a map of the properties which go into the header of the request
@@ -129,7 +127,7 @@ public class SOAPMessenger {
 		
 		this.outputFile = output;
 		this.url = url;
-		this.inputFile = xmlFileStream;
+		this.inputStream = xmlFileStream;
 		this.sessionID = sesID;
 		this.requestProperties = reqProprties;
 		
@@ -141,11 +139,11 @@ public class SOAPMessenger {
 			log.debug("Outputfile = " + this.outputFile.toString());
 		}
 		
-		if(this.inputFile == null) {
+		if(this.inputStream == null) {
 			log.debug("Inputfile = null");
 			log.error("Must provide message file!");
 		}else{
-			log.debug("Inputfile = " + this.inputFile.toString());
+			log.debug("Inputfile = " + this.inputStream.toString());
 		}
 		
 		if(this.url == null) {
@@ -167,7 +165,7 @@ public class SOAPMessenger {
 		}else{
 			log.debug("Request Properties:");
 			for(String prop : this.requestProperties.keySet()){
-				log.debug(prop+" = "+ this.requestProperties.get(prop));
+				log.debug(prop + " = " + this.requestProperties.get(prop));
 			}
 		}
 		
@@ -224,12 +222,11 @@ public class SOAPMessenger {
 	    char[] cbuf = new char[ 2048 ];
 	    int num;
 	
-	    while ( -1 != (num=isReader.read( cbuf )))
-	    {
+	    while ( -1 != (num=isReader.read( cbuf ))) {
 	        buf.append( cbuf, 0, num );
 	    }
 	
-	    return buf.toString();
+	    return StringEscapeUtils.unescapeXml(buf.toString());
 	}
 	
 	/**
@@ -238,7 +235,7 @@ public class SOAPMessenger {
 	 */
 	public void execute() throws IOException {
 
-		this.xmlString = IOUtils.toString(this.inputFile,"UTF-8");
+		this.xmlString = IOUtils.toString(this.inputStream,"UTF-8");
 
 		log.info("Built message");
 		log.debug("Message contents:\n" + this.xmlString);
@@ -252,45 +249,15 @@ public class SOAPMessenger {
 		log.debug("getting reader for url connection");
 		String result = readMessage();
 
-	    result = formatResult(result);
+	    result = XMLAide.formatXML(result);
 
-		log.debug("Response contents:\n" + result);
+//		log.debug("Response contents:\n" + result);
 	    OutputStreamWriter outputWriter = new OutputStreamWriter(this.outputFile);
 		log.info("writing response");
 	    outputWriter.write(result);
 	    outputWriter.close();
 
 	}
-	
-	/**
-	 * Take an XML string and ensure there are line breaks and indentation.
-	 * @param inputXml the input XML string
-	 * @return the formatted XML string
-	 */
-	public String formatResult(String inputXml) {
-		try {
-			StringReader reader = new StringReader(inputXml);
-			InputSource source = new InputSource(reader);
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			DocumentBuilder builder = factory.newDocumentBuilder();
-			Document document = builder.parse(source);
-			
-			Transformer transformer = TransformerFactory.newInstance().newTransformer();
-			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-			
-			StreamResult result = new StreamResult(new StringWriter());
-			DOMSource domSource = new DOMSource(document);
-			transformer.transform(domSource, result);
-			
-			return result.getWriter().toString();
-		} catch(Exception e) {
-			log.error(e.getMessage(), e);
-			return inputXml; //log error and then just don't format the result
-		}
-	}
-	
-	
 	
 	/**
 	 * Get the ArgParser for this task

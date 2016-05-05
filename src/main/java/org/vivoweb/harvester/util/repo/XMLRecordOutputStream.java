@@ -13,43 +13,49 @@ import java.util.regex.Pattern;
 
 /**
  * An Output Stream that breaks XML blobs into individual Records and writes to a RecordHandler
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class XMLRecordOutputStream extends OutputStream implements Cloneable {
 	/**
 	 * Buffer to hold data until a complete record is formed
 	 */
 	private ByteArrayOutputStream buf;
+	
 	/**
 	 * RecordStreamOrigin to give record back to
 	 */
 	private RecordStreamOrigin rso;
-
+	
 	/**
 	 * the byte array that represent a closing record tag
 	 */
 	private byte[][] closeTags;
+	
 	/**
 	 * the byte array that represent a opening record tag
 	 */
 	private byte[][] openTags;
+	
 	/**
 	 * Regex to find the identifing data in the record data
 	 */
 	private Pattern idRegex;
+	
 	/**
 	 * Prepend to each record
 	 */
 	private String header;
+	
 	/**
 	 * Append to each record
 	 */
 	private String footer;
+	
 	/**
-   * Store state of buffer comparison against tags to split on
-   */
-  private Boolean capturingRecord;
-
+	* Store state of buffer comparison against tags to split on
+	*/
+	private boolean capturingRecord;
+	
 	/**
 	 * Constructor
 	 * @param tagsToSplitOn defines the record tag types
@@ -60,7 +66,7 @@ public class XMLRecordOutputStream extends OutputStream implements Cloneable {
 	 */
 	public XMLRecordOutputStream(String[] tagsToSplitOn, String headerInfo, String footerInfo, String idLocationRegex, RecordStreamOrigin rso) {
 		this.capturingRecord = false;
-    this.buf = new ByteArrayOutputStream();
+		this.buf = new ByteArrayOutputStream();
 		this.rso = rso;
 		this.idRegex = Pattern.compile(idLocationRegex);
 		this.closeTags = new byte[tagsToSplitOn.length][];
@@ -83,45 +89,45 @@ public class XMLRecordOutputStream extends OutputStream implements Cloneable {
 	
 	@Override
 	public void write(int arg0) throws IOException {
-	
-    this.buf.write(arg0);
-    byte[] a = this.buf.toByteArray();
-    
-    //store the state of when an opening tag is found
-    if (!this.capturingRecord){
-      for(int x = 0; x < this.openTags.length; x++) {
-        if(compareByteArrays(a, this.openTags[x])) {
-          this.capturingRecord = true;
-          this.buf.reset();
-          this.buf.write(this.openTags[x]);
-          System.out.println("capturing record");
-        }
-      }
-    }
-
-    //compare each closing tag - only if an opening tag has been found 
-    if (this.capturingRecord){
-      for(int x = 0; x < this.closeTags.length; x++) {
-        if(compareByteArrays(a, this.closeTags[x])) {
-          
-          //Create the record
-          String record = new String(a);
-          Matcher m = this.idRegex.matcher(record);
-          m.find();
-          String id = m.group(1);
-          
-          //Write the record
-          if(this.rso == null) {
-            throw new IllegalArgumentException("Must provide a valid RecordStreamOrigin before writing!");
-          }
-          id = id.trim();
-          this.rso.writeRecord(id, this.header + record.trim() + this.footer);
-          this.buf.reset();
-          this.capturingRecord = false;
-        }
-      }
-    }
-
+		
+		this.buf.write(arg0);
+		byte[] a = this.buf.toByteArray();
+		
+		//store the state of when an opening tag is found
+		if(!this.capturingRecord) {
+			for(byte[] tag : this.openTags) {
+				if(compareByteArrays(a, tag)) {
+					this.capturingRecord = true;
+					this.buf.reset();
+					this.buf.write(tag);
+					System.out.println("capturing record");
+				}
+			}
+		}
+		
+		//compare each closing tag - only if an opening tag has been found 
+		if(this.capturingRecord) {
+			for(byte[] tag : this.closeTags) {
+				if(compareByteArrays(a, tag)) {
+					
+					//Create the record
+					String record = new String(a);
+					Matcher m = this.idRegex.matcher(record);
+					m.find();
+					String id = m.group(1);
+					
+					//Write the record
+					if(this.rso == null) {
+						throw new IllegalArgumentException("Must provide a valid RecordStreamOrigin before writing!");
+					}
+					id = id.trim();
+					this.rso.writeRecord(id, this.header + record.trim() + this.footer);
+					this.buf.reset();
+					this.capturingRecord = false;
+				}
+			}
+		}
+		
 	}
 	
 	/**

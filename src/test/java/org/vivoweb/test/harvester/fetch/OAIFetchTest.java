@@ -17,7 +17,7 @@ import org.vivoweb.harvester.util.repo.RecordHandler;
 
 /**
  * @author Dale Scheppler (dscheppler@ctrip.ufl.edu)
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 
 public class OAIFetchTest extends TestCase {

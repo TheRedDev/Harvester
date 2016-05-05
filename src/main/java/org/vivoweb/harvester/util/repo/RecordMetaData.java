@@ -12,7 +12,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 /**
  * Contains a metadata statement about a record
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class RecordMetaData implements Comparable<RecordMetaData> {
 	/**
@@ -90,7 +90,7 @@ public class RecordMetaData implements Comparable<RecordMetaData> {
 	
 	/**
 	 * Defines the type of Record MetaData Types
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	public static enum RecordMetaDataType {
 		/**

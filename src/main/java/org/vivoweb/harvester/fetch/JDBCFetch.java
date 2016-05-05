@@ -33,7 +33,7 @@ import org.vivoweb.harvester.util.repo.RecordHandler;
 
 /**
  * Fetches rdf data from a JDBC database placing the data in the supplied record handler.
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class JDBCFetch {
 	/**

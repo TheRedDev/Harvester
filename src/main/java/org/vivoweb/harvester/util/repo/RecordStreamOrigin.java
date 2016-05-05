@@ -9,7 +9,7 @@ import java.io.IOException;
 
 /**
  * Interface for all users of XMLRecordOutputStream
- * @author Christopher Haines (hainesc@ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public interface RecordStreamOrigin {
 	/**

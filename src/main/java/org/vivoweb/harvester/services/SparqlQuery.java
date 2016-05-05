@@ -15,23 +15,19 @@ import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
-import org.vivoweb.harvester.util.args.UsageException; 
-
+import org.vivoweb.harvester.util.args.UsageException;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
- 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-//import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils; 
 
 /**
  * Execute Sparql update in Jena model in an instance of VIVO
@@ -43,35 +39,36 @@ public class SparqlQuery {
 	 * SLF4J Logger
 	 */
 	private static Logger log = LoggerFactory.getLogger(SparqlQuery.class);
+	
 	/**
 	 * Model to write to
 	 */
-	private String model;	 
-	 
+	private String model;
+	
 	/**
 	 * sparql query
 	 */
 	private String query;
 	
-	/*
+	/**
 	 * VIVO admin user name
 	 */
 	private String username;
 	
-	/*
+	/**
 	 * VIVO admin password
 	 */
-	private String password; 
+	private String password;
 	
-	/*
+	/**
 	 * Sparql update URL
 	 */
 	private String url;
 	
-	/*
+	/**
 	 * output format
 	 */
-	private String format; 
+	private String format;
 	
 	/**
 	 * Constructor
@@ -86,24 +83,43 @@ public class SparqlQuery {
 	/**
 	 * Constructor
 	 * @param argList parsed argument list
-	 * @throws IOException error creating task
 	 */
-	private SparqlQuery(ArgList argList) throws IOException {
-		 
+	private SparqlQuery(ArgList argList) {
+		this(
+			argList.get("m"),
+			argList.get("q"),
+			argList.get("u"),
+			argList.get("p"),
+			argList.get("U"),
+			argList.get("f")
+		);
+	}
+	
+	/**
+	 * Library Constructor
+	 * @param model Model to write to
+	 * @param query sparql query
+	 * @param username VIVO admin user name
+	 * @param password VIVO admin password
+	 * @param url Sparql update URL
+	 * @param format output format
+	 */
+	private SparqlQuery(String model, String query, String username, String password, String url, String format) {
+		
 		// setup output
-		this.model = argList.get("m");
+		this.model = model;
 		
 		// load sparql query
-		this.query = argList.get("q"); ;		
-		 
+		this.query = query;
+		
 		// get username
-		this.username = argList.get("u");
+		this.username = username;
 		
 		// get password
-		this.password = argList.get("p"); 
+		this.password = password;
 		
 		// get sparql url
-		this.url = argList.get("U");
+		this.url = url;
 		
 		// Require model args
 		if(this.model == null) {
@@ -111,33 +127,32 @@ public class SparqlQuery {
 		}
 		
 		// Require sparql
-		if (this.query == null) {
+		if(this.query == null) {
 			throw new IllegalArgumentException("Must provide a sparql query");
 		}
 		
 		// Require user name 
-		if (this.username == null) {
+		if(this.username == null) {
 			throw new IllegalArgumentException("Must provide a VIVO admin username");
 		}
 		
 		// Require password
-		if (this.password == null) {
+		if(this.password == null) {
 			throw new IllegalArgumentException("Must provide a VIVO admin password");
 		}
 		
 		// Require sparql query url
-		if (this.url == null) {
+		if(this.url == null) {
 			throw new IllegalArgumentException("Must provide a Sparql Query URL");
 		}
 		
 		// get format
-		this.format = argList.get("f");
-						
-		if (this.format == null) {
-		   this.format = "text";
+		this.format = format;
+		
+		if(this.format == null) {
+			this.format = "text";
 		}
 		
-		 
 	}
 	
 	/**
@@ -145,49 +160,43 @@ public class SparqlQuery {
 	 * @throws IOException error
 	 */
 	private void execute() throws IOException {
-	   //System.out.println("To be implemented");
+		//System.out.println("To be implemented");
 		Header header = null;
-		if (this.format.equals("rdfxml")) {
+		if(this.format.equals("rdfxml")) {
 			header = new BasicHeader(HttpHeaders.ACCEPT, "application/sparql-results+xml");
 		} else if(this.format.equals("csv")) {
 			header = new BasicHeader(HttpHeaders.ACCEPT, "text/csv");
-		}  else if(this.format.equals("json")) {
+		} else if(this.format.equals("json")) {
 			header = new BasicHeader(HttpHeaders.ACCEPT, "application/sparql-results+json");
 		} else {
 			header = new BasicHeader(HttpHeaders.ACCEPT, "text/plain");
 		}
 		
-		
-	   CloseableHttpClient httpclient = HttpClients.createDefault();
-	   try {
-	      HttpPost httpPost = new HttpPost(this.url);
-	      httpPost.addHeader(header);
-	      List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-	      nvps.add(new BasicNameValuePair("query", this.query));
-	      nvps.add(new BasicNameValuePair("email", this.username));
-	      nvps.add(new BasicNameValuePair("password", this.password));
-	      httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-	      CloseableHttpResponse response = httpclient.execute(httpPost);
-	      try {
-              System.out.println(response.getStatusLine());
-              HttpEntity entity = response.getEntity();
-              InputStream is = entity.getContent();
-              try {
-            	 IOUtils.copy(is, System.out);
-              } finally {
-                 is.close();
-              }
-              
-          } finally {
-              response.close();
-          }
-	       
-	   } finally {
-	      httpclient.close();	
-	   }
-	   
-	   
-	   
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		try {
+			HttpPost httpPost = new HttpPost(this.url);
+			httpPost.addHeader(header);
+			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+			nvps.add(new BasicNameValuePair("query", this.query));
+			nvps.add(new BasicNameValuePair("email", this.username));
+			nvps.add(new BasicNameValuePair("password", this.password));
+			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+			CloseableHttpResponse response = httpclient.execute(httpPost);
+			try {
+				System.out.println(response.getStatusLine());
+				HttpEntity entity = response.getEntity();
+				InputStream is = entity.getContent();
+				try {
+					IOUtils.copy(is, System.out);
+				} finally {
+					is.close();
+				}
+			} finally {
+				response.close();
+			}
+		} finally {
+			httpclient.close();
+		}
 	}
 	
 	/**
@@ -199,12 +208,12 @@ public class SparqlQuery {
 		// Inputs
 		
 		parser.addArgument(new ArgDef().setShortOption('q').setLongOpt("query").withParameter(true, "QUERY").setDescription("the sparql query to be executed").setRequired(true));
-		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("username").withParameter(true, "USERNAME").setDescription("vivo admin user name").setRequired(true)); 
-		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("password").withParameter(true, "PASSWORD").setDescription("vivo admin password").setRequired(true)); 
-		parser.addArgument(new ArgDef().setShortOption('U').setLongOpt("url").withParameter(true, "URL").setDescription("sparql update url").setRequired(true)); 
+		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("username").withParameter(true, "USERNAME").setDescription("vivo admin user name").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("password").withParameter(true, "PASSWORD").setDescription("vivo admin password").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('U').setLongOpt("url").withParameter(true, "URL").setDescription("sparql update url").setRequired(true));
 		// Outputs
-		parser.addArgument(new ArgDef().setShortOption('m').setLongOpt("model").withParameter(true, "MODEL").setDescription("name of jena model").setRequired(true)); 
-		parser.addArgument(new ArgDef().setShortOption('f').setLongOpt("format").withParameter(true, "FORMAT").setDescription("the format of the output (text, ntriples, n3, rdfxml, json").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('m').setLongOpt("model").withParameter(true, "MODEL").setDescription("name of jena model").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('f').setLongOpt("format").withParameter(true, "FORMAT").setDescription("the format of the output (text, ntriples, n3, rdfxml, json").setDefaultValue("text").setRequired(false));
 		return parser;
 	}
 	
@@ -220,7 +229,7 @@ public class SparqlQuery {
 			new SparqlQuery(args).execute();
 		} catch(IllegalArgumentException e) {
 			log.error(e.getMessage());
-			log.debug("Stacktrace:",e);
+			log.debug("Stacktrace:", e);
 			System.out.println(getParser().getUsage());
 			error = e;
 		} catch(UsageException e) {
@@ -229,7 +238,7 @@ public class SparqlQuery {
 			error = e;
 		} catch(Exception e) {
 			log.error(e.getMessage());
-			log.debug("Stacktrace:",e);
+			log.debug("Stacktrace:", e);
 			error = e;
 		} finally {
 			log.info(getParser().getAppName() + ": End");

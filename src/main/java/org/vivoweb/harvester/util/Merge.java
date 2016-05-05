@@ -24,7 +24,7 @@ import org.vivoweb.harvester.util.repo.RecordHandler;
 
 /**
  * Merge multiple rdf files into one
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class Merge {
 	/**

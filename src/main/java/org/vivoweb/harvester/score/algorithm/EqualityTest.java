@@ -7,7 +7,7 @@ package org.vivoweb.harvester.score.algorithm;
 
 /**
  * Equality Test Algorithm
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class EqualityTest implements Algorithm {
 	

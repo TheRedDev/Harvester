@@ -9,7 +9,7 @@ import org.apache.commons.lang.StringUtils;
 
 /**
  * Normalized Levenshtein Difference Score Algorithm
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class NormalizedLevenshteinDifference implements Algorithm {
 	

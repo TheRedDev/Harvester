@@ -7,7 +7,7 @@ package org.vivoweb.harvester.util.args;
 
 /**
  * Defines an Argument
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class ArgDef {
 	/**
@@ -46,6 +46,10 @@ public class ArgDef {
 	 * Is this argument a value map
 	 */
 	private boolean parameterValueMapType;
+	/**
+	 * Is this argument a boolean flag
+	 */
+	private boolean parameterBooleanType;
 	
 	/**
 	 * Default Constructor
@@ -135,6 +139,14 @@ public class ArgDef {
 	}
 	
 	/**
+	 * Is this argument a boolean flag
+	 * @return true if a boolean flag
+	 */
+	public boolean hasParameterBoolean() {
+		return this.parameterBooleanType;
+	}
+	
+	/**
 	 * Does this argument have a parameter with a default value
 	 * @return true if this argument has a parameter with a default value
 	 */
@@ -199,11 +211,27 @@ public class ArgDef {
 	}
 	
 	/**
+	 * Sets this argument as a boolean flag
+	 * @param booleanType is this argument a boolean flag
+	 * @return this ArgDef
+	 */
+	public ArgDef withBoolean(boolean booleanType) {
+		if(booleanType && hasParameter()) {
+			throw new IllegalArgumentException("Cannot Set Boolean With Parameters");
+		}
+		this.parameterBooleanType = booleanType;
+		return this;
+	}
+	
+	/**
 	 * Sets the default value
 	 * @param valueDefault the default value
 	 * @return this ArgDef
 	 */
 	public ArgDef setDefaultValue(String valueDefault) {
+		if(this.parameterBooleanType) {
+			throw new IllegalArgumentException("Boolean Flags Default To False");
+		}
 		this.defaultValue = valueDefault;
 		return this;
 	}
@@ -236,6 +264,9 @@ public class ArgDef {
 	 * @return this ArgDef
 	 */
 	public ArgDef withParameters(boolean required, String description, int numParams) {
+		if(this.parameterBooleanType) {
+			throw new IllegalArgumentException("Boolean Flags Cannot Have Parameters");
+		}
 		if(this.parameterDescription != null) {
 			throw new IllegalArgumentException("Parameter Already Defined");
 		}

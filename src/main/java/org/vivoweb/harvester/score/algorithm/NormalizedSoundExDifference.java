@@ -10,7 +10,7 @@ import org.apache.commons.codec.language.Soundex;
 
 /**
  * Normalized SoundEx Difference Algorithm
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class NormalizedSoundExDifference implements Algorithm {
 	

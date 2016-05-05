@@ -12,7 +12,7 @@ import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.SpecialEntities;
 
 /**
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class SpecialEntitiesTest extends TestCase {
 	/**

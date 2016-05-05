@@ -11,57 +11,46 @@ import gov.nih.nlm.ncbi.www.soap.eutils.EFetchPubmedServiceStub.PubmedArticleSet
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.xml.namespace.QName;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.TransformerFactoryConfigurationError;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import org.apache.axis2.databinding.utils.writer.MTOMAwareXMLSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.FileAide;
 import org.vivoweb.harvester.util.InitLog;
+import org.vivoweb.harvester.util.IterableAdaptor;
+import org.vivoweb.harvester.util.XMLAide;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
 import org.vivoweb.harvester.util.repo.RecordHandler;
-import org.vivoweb.harvester.util.repo.RecordStreamOrigin;
-import org.vivoweb.harvester.util.repo.SDBJenaConnect;
 import org.vivoweb.harvester.util.repo.XMLRecordOutputStream;
+import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
+import org.xml.sax.SAXException;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
 
 /**
  * Module for fetching publications from Scopus (query by Scopus Author ID) and 
@@ -90,8 +79,11 @@ public class ScopusFetch extends NIHFetch {
 	 * map that contains Scopus Author ID of researchers in VIVO
 	 * key: http://vivo.med.cornell.edu/individual/cwid-sea2003,6602763271
 	 */
-	private HashMap<String, String> scopusIdMap = new HashMap<String, String>();
+	private Map<String, String> scopusIdMap = new HashMap<String, String>();
 	
+	/**
+	 * jena connect for vivo instance
+	 */
 	private JenaConnect vivoJena;
 
 	/**
@@ -127,7 +119,7 @@ public class ScopusFetch extends NIHFetch {
 	/**
 	 * Scopus affiliation list
 	 */
-	private ArrayList<String> scopusAffilList;
+	private List<String> scopusAffilList;
 
 	/**
 	 * Scopus publications linked to affiliation list.
@@ -137,13 +129,13 @@ public class ScopusFetch extends NIHFetch {
 	/**
 	 * List to store pubmed documents.
 	 */
-	private ArrayList<Document> pubmedDocList = new ArrayList<Document>();
+	private List<Document> pubmedDocList = new ArrayList<Document>();
 	
 	/**
 	 * List to make sure there are no duplications of Scopus Doc Ids in the ScopusBean maps
 	 * across all authors.
 	 */
-	private ArrayList<String> scopusDocIdList = new ArrayList<String>();
+	private List<String> scopusDocIdList = new ArrayList<String>();
 	
 	/**
 	 * Constructor: Primary method for running a PubMed Fetch. The email address of the person responsible for this
@@ -181,12 +173,12 @@ public class ScopusFetch extends NIHFetch {
 		this.scopusApiKey = opts.get("k");
 		this.scopusAccept = opts.get("a");
 		
-		if (opts.get("f") != null) {
-			this.scopusAffilList = new ArrayList<String>(Arrays.asList(opts.get("f").split(",")));
+		if(opts.get("f") != null) {
+			this.scopusAffilList = Arrays.asList(opts.get("f").split(","));
 		}
 		this.scopusAffilLinked = opts.get("n");
-		this.sparqlQuery = getFileContent(opts.get("q"));
-		if (opts.get("s") != null && opts.get("e") != null) {
+		this.sparqlQuery = FileAide.getTextContent(opts.get("q"));
+		if(opts.get("s") != null && opts.get("e") != null) {
 			this.scopusPubYearS = opts.get("s");
 			this.scopusPubYearE = opts.get("e");			
 		}
@@ -199,25 +191,23 @@ public class ScopusFetch extends NIHFetch {
 	 */
 	private ScopusFetch(ArgList argList) throws IOException {
 		super(argList, database);
-		
 	}
 	
 	@Override
-	public void execute() {
-		
+	public void execute() throws IOException {
 		// get scopus author id from vivo
 		getVivoScopusId();
 		
-		if (this.scopusIdMap.size() > 0) {
+		if(this.scopusIdMap.size() > 0) {
 			// connect to Scopus and get authtoken
 			boolean connected = initScopusConnect();
 	
-			if (connected) {
+			if(connected) {
 				// iterate list of Scopus Author ID and get publication data
 				log.info("Query Scopus by Author ID: Start");
 				
 				StringBuffer errMsg = new StringBuffer();
-				for (String key : this.scopusIdMap.keySet()) {
+				for(String key : this.scopusIdMap.keySet()) {
 					
 					String[] keySplit = key.split(",");
 					String scopusId = keySplit[1];
@@ -227,34 +217,38 @@ public class ScopusFetch extends NIHFetch {
 					String scopusQueryResponse = scopusQueryByAuthorId(scopusId);
 	
 					// extract DOI from the query response and populate ScopusBeanMap
-					HashMap<String, ScopusBean> sbMap = new HashMap<String, ScopusBean>();
+					Map<String, ScopusBean> sbMap = new HashMap<String, ScopusBean>();
 					populateScopusBeanMap(scopusQueryResponse, sbMap, errMsg);
 
 					
 					// first round: query Pubmed and populate pubmedMap using Doi
-					HashMap<String, String> pubmedMap = new HashMap<String, String>();
-					if (errMsg.length() == 0) {
+					Map<String, String> pubmedMap = new HashMap<String, String>();
+					if(errMsg.length() == 0) {
 						pubmedQueryByDoi(sbMap, pubmedMap, errMsg);
 					}
 					
 					// second round: 1) query Scopus by Doc ID to get Pubmed ID
-					ArrayList<String> pmidList = new ArrayList<String>();
-					if (errMsg.length() == 0) {
+					List<String> pmidList = new ArrayList<String>();
+					if(errMsg.length() == 0) {
 						scopusQueryByDocId(sbMap, pmidList);
 					}
 					
 					// second round: 2) query Pubmed and populate pubmedMap using Pubmed ID
-					if (errMsg.length() == 0) {
+					if(errMsg.length() == 0) {
 						pubmedQueryByPubmedId(pmidList, sbMap, pubmedMap, errMsg);
 					}
 	
 					// finally: populate scopusMap with articles that are not found in Pubmed
-					HashMap<String, String> scopusMap = new HashMap<String, String>();
-					if (errMsg.length() == 0) {
-						populateScopusMap(sbMap, scopusMap);
-						
-						// write to files
-						writeToFiles(scopusId, pubmedMap, scopusMap, errMsg);
+					Map<String, String> scopusMap = new HashMap<String, String>();
+					if(errMsg.length() == 0) {
+						try {
+							populateScopusMap(sbMap, scopusMap);
+							
+							// write to files
+							writeToFiles(scopusId, pubmedMap, scopusMap, errMsg);
+						} catch(TransformerException e) {
+							log.error(e.getMessage(), e);
+						}
 					}
 				}
 
@@ -278,22 +272,17 @@ public class ScopusFetch extends NIHFetch {
 	 */
 	private void getVivoScopusId() {
 		// run sparql
-		ResultSet rs = runSparql();
-		while(rs.hasNext()) {
+		for(QuerySolution qs : IterableAdaptor.adapt(runSparql())) {
 			String uri = null;
 			String scopusId = null;
-			QuerySolution qs = rs.next();
-			Iterator<String> it = qs.varNames();
-			while (it.hasNext()) {
-				String key = (String)it.next();
-				if (qs.get(key).isResource()) { // resource URI
+			for(String key : IterableAdaptor.adapt(qs.varNames())) {
+				if(qs.get(key).isResource()) { // resource URI
 					uri = qs.getResource(key).getURI();
 				} else if (qs.get(key).isLiteral()) { // scopusId
 					scopusId = qs.getLiteral(key).getString().replace("<p>", "").replace("</p>", "");
 				}
 			}
-
-			if (uri != null && scopusId != null) {
+			if(uri != null && scopusId != null) {
 				this.scopusIdMap.put(uri + "," + scopusId, null);
 			}
 		}
@@ -301,6 +290,7 @@ public class ScopusFetch extends NIHFetch {
 
 	/**
 	 * Necessary step to obtain authentication token
+	 * @return true if successful, false otherwise
 	 */
 	private boolean initScopusConnect() {
 		boolean connected = true;
@@ -313,27 +303,21 @@ public class ScopusFetch extends NIHFetch {
 			String inputLine;
 			StringBuffer respBuf = new StringBuffer();
 			
-			while ((inputLine = in.readLine()) != null) {
+			while((inputLine = in.readLine()) != null) {
 				respBuf.append(inputLine);
 			}
 			in.close();
 			
-			Document doc = loadXMLFromString(respBuf.toString());
+			Document doc = XMLAide.getDocument(respBuf.toString());
 			Node authtokenNode = doc.getElementsByTagName("authenticate-response").item(0);
-			if (authtokenNode.getTextContent() != null) {
+			if(authtokenNode.getTextContent() != null) {
 				this.scopusAuthtoken  = authtokenNode.getTextContent().trim();
 			}
-		} 
-		catch (MalformedURLException e) {
-			log.error("initScopusConnect MalformedURLException: ", e);
+		} catch(SAXException e) {
+			log.error("initScopusConnect SAXException: ", e);
 			connected = false;
-		} 
-		catch (IOException e) {
+		} catch(IOException e) {
 			log.error("initScopusConnect IOException: ", e);
-			connected = false;
-		} 
-		catch (Exception e) {
-			log.error("initScopusConnect Exception: ", e);
 			connected = false;
 		}
 		return connected;
@@ -341,19 +325,16 @@ public class ScopusFetch extends NIHFetch {
 	
 	/**
 	 * SPARQL to retrieve people from VIVO with Scopus ID
-	 * @return
+	 * @return result set
 	 */
 	private ResultSet runSparql() {
 		ResultSet rs = null;
-		StringBuilder sQuery = new StringBuilder();
 		try {
 			rs = this.vivoJena.executeSelectQuery(this.sparqlQuery);
 			log.info(this.sparqlQuery);
-			
-		} catch (IOException e) {
+		} catch(IOException e) {
 			log.error(this.getClass().getName() + " execute IOException: " + e);
 		}
-		
 		return rs;
 	}
 	
@@ -362,50 +343,48 @@ public class ScopusFetch extends NIHFetch {
 	 * The query String includes the publication start and end years to
 	 * limit the results returned from Scopus.
 	 * 
-	 * @param String scopusId
-	 * @return String
+	 * @param scopusId the scopusID
+	 * @return metadata
+	 * @throws IOException error parsing response
 	 */
-	private String scopusQueryByAuthorId(String scopusId) {
+	private String scopusQueryByAuthorId(String scopusId) throws IOException {
 		
 		int totalResults = 0;
 		String pubYearStr = null;
 		StringBuffer completeRespBuf = new StringBuffer();
 		
-		if (this.scopusPubYearS != null && this.scopusPubYearE != null) {
+		if(this.scopusPubYearS != null && this.scopusPubYearE != null) {
 			pubYearStr = constructPubYearQStr(this.scopusPubYearS, this.scopusPubYearE);
 		}
 
 		try {
-			
 			String queryStr = "http://api.elsevier.com/content/search/index:SCOPUS?query=au-id(" + scopusId + ")";
-			if (pubYearStr != null) {
+			if(pubYearStr != null) {
 				queryStr += "+AND+(" + pubYearStr + ")";
 			}
 			String respStr = urlConnect(queryStr);
 			
-			if (respStr.length() > 0) {
-				Document doc = loadXMLFromString(respStr);
-				NodeList nodes = doc.getChildNodes();
+			if(respStr.length() > 0) {
+				Document doc = XMLAide.getDocument(respStr);
 				NodeList resultsNodes = doc.getElementsByTagName("opensearch:totalResults");
-				if (resultsNodes != null) {
+				if(resultsNodes != null) {
 					String resultsNodeVal = resultsNodes.item(0).getTextContent();
 					totalResults = Integer.parseInt(resultsNodeVal);
 					log.info("Total results for " + scopusId + " is " + totalResults);
 				}
 			}
 
-			if (totalResults > 0) { 
+			if(totalResults > 0) { 
 				// query by counts
 				int start = 0;
 				int count = 200;
 				int countList = 0;
-				ArrayList<String> qStrList = constructCompleteQStr(queryStr, count, start, totalResults);
-				for (String queryCompleteStr: qStrList) {
+				for(String queryCompleteStr: constructCompleteQStr(queryStr, count, start, totalResults)) {
 					log.info("Scopus query: " + queryCompleteStr);
 					String eachRespStr = urlConnect(queryCompleteStr);
-					if (countList > 0) {
+					if(countList > 0) {
 						int entryIndex = eachRespStr.indexOf("<entry>");
-						if (entryIndex > -1) {
+						if(entryIndex > -1) {
 							eachRespStr = eachRespStr.substring(entryIndex);
 						}
 					}
@@ -414,18 +393,17 @@ public class ScopusFetch extends NIHFetch {
 				}
 				completeRespBuf.append("</feed>");
 			}
-		} catch (MalformedURLException e) {
-			log.error("scopusQueryByAuthorId MalformedURLException: ", e);
-		} 
-		catch (IOException e) {
-			log.error("scopusQueryByAuthorId IOException: ", e);
-		} 
-		catch (Exception e) {
-			log.error("scopusQueryByAuthorId Exception: ", e);
+		} catch(SAXException e) {
+			log.error("scopusQueryByAuthorId SAXException: ", e);
 		}
 		return completeRespBuf.toString();
 	}
 	
+	/**
+	 * connect
+	 * @param queryStr the query string
+	 * @return the response
+	 */
 	private String urlConnect(String queryStr) {
 		StringBuffer respBuf = new StringBuffer();
 		try {
@@ -437,17 +415,15 @@ public class ScopusFetch extends NIHFetch {
 			BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 			String inputLine;
 	
-			while ((inputLine = in.readLine()) != null) {
+			while((inputLine = in.readLine()) != null) {
 				respBuf.append(inputLine);
 			}
 			in.close();
-		} catch (MalformedURLException e) {
+		} catch(MalformedURLException e) {
 			log.error("urlConnect MalformedURLException: ", e);
-		} 
-		catch (IOException e) {
+		} catch(IOException e) {
 			log.error("urlConnect IOException: ", e);
-		} 
-		catch (Exception e) {
+		} catch(Exception e) {
 			log.error("urlConnect Exception: ", e);
 		}
 		return respBuf.toString();
@@ -456,18 +432,18 @@ public class ScopusFetch extends NIHFetch {
 	/**
 	 * Constructs publication year String
 	 * Method declared public for test purposes
-	 * @param startYear
-	 * @param endYear
-	 * @return
+	 * @param startYear the start year
+	 * @param endYear the end year
+	 * @return the query string
 	 */
 	public String constructPubYearQStr(String startYear, String endYear) {
 		// e.g. PUBYEAR+IS+2010+OR+PUBYEAR+IS+2011
 		StringBuffer qBuf = new StringBuffer();
 		int s = Integer.parseInt(startYear);
 		int e = Integer.parseInt(endYear);
-		if (e > s) {
-			for (int i=s; i<e+1; i++) {
-				if (qBuf.length() > 0) {
+		if(e > s) {
+			for(int i = s; i < e + 1; i++) {
+				if(qBuf.length() > 0) {
 					qBuf.append("+OR+");
 				}
 				qBuf.append("PUBYEAR+IS+" + String.valueOf(i));
@@ -481,36 +457,33 @@ public class ScopusFetch extends NIHFetch {
 	/**
 	 * Constructs query String list
 	 * Method declared public for test purposes
-	 * @param queryStr
-	 * @param count
-	 * @param start
-	 * @param totalResults
-	 * @return
+	 * @param queryStr the query string
+	 * @param count the number by which to increment
+	 * @param start where to start
+	 * @param totalResults where to end
+	 * @return array list of results
 	 */
-	public ArrayList<String> constructCompleteQStr(String queryStr, int count, 
-			int start, int totalResults) {
-		ArrayList<String> qStrList = new ArrayList<String>();
-		while (start <= totalResults) {
-			String queryCompleteStr = queryStr + "&count=" + count + "&start=" + start + "&view=COMPLETE";
+	public List<String> constructCompleteQStr(String queryStr, int count, int start, int totalResults) {
+		int myStart = start;
+		List<String> qStrList = new ArrayList<String>();
+		while(myStart <= totalResults) {
+			String queryCompleteStr = queryStr + "&count=" + count + "&start=" + myStart + "&view=COMPLETE";
 			qStrList.add(queryCompleteStr);
-			start += count;
+			myStart += count;
 		}
 		return qStrList;
 	}
 
 	/**
 	 * This method retrieves Pubmed ID by querying Scopus by Scopus Document ID
-	 * @param sbMap
-	 * @param pmidList
+	 * @param sbMap scopus mapping
+	 * @param pmidList pubmed ids list
 	 */
-	private void scopusQueryByDocId(HashMap<String, ScopusBean> sbMap, ArrayList<String> pmidList) {
-		
+	private void scopusQueryByDocId(Map<String, ScopusBean> sbMap, List<String> pmidList) {
 		try {
-			Iterator<String> sbIter = sbMap.keySet().iterator();
-			while (sbIter.hasNext()) {
-				String key = sbIter.next();
+			for(String key : sbMap.keySet()) {
 				ScopusBean sb = sbMap.get(key);
-				if (sb.getPubmedId() == null) {
+				if(sb.getPubmedId() == null) {
 					// get Pubmed ID from Scopus
 					StringBuffer respBuf = new StringBuffer();
 					String queryStr = "http://api.elsevier.com/content/abstract/SCOPUS_ID:" + sb.getScopusDocId() + "?view=META";
@@ -522,18 +495,16 @@ public class ScopusFetch extends NIHFetch {
 					BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 					String inputLine;
 
-					while ((inputLine = in.readLine()) != null) {
+					while((inputLine = in.readLine()) != null) {
 						respBuf.append(inputLine);
 					}
 					in.close();
 					
 					// log.info("query by scopus doc id: " + respBuf.toString());
-					Document doc = loadXMLFromString(respBuf.toString());
-					NodeList nodes = doc.getChildNodes();
-					NodeList pubmedNodes = doc.getElementsByTagName("pubmed-id");
-					if (pubmedNodes != null) {
+					NodeList pubmedNodes = XMLAide.getDocument(respBuf.toString()).getElementsByTagName("pubmed-id");
+					if(pubmedNodes != null) {
 						String pubmedNodeVal = pubmedNodes.item(0).getTextContent();
-						if (!"".equals(pubmedNodeVal)) {
+						if(!"".equals(pubmedNodeVal)) {
 							pmidList.add(pubmedNodeVal);
 							sb.setPubmedId(pubmedNodeVal);
 						}
@@ -542,69 +513,65 @@ public class ScopusFetch extends NIHFetch {
 					}
 				}
 			}
-
-		} catch (MalformedURLException e) {
+		} catch(MalformedURLException e) {
 			log.error("scopusQueryByDocId MalformedURLException: ", e);
-		} 
-		catch (IOException e) {
+		} catch(IOException e) {
 			log.error("scopusQueryByDocId IOException: ", e);
-		} 
-		catch (Exception e) {
+		} catch(Exception e) {
 			log.error("scopusQueryByDocId Exception: ", e);
 		}
 	}
 
 	/**
 	 * This method extracts metadata from a Scopus feed and then populates the ScopusBean map.
-	 * @param resp
-	 * @param sbMap
+	 * @param resp xml response
+	 * @param sbMap scopus bean map
+	 * @param errMsg error message buffer
+	 * @throws IOException error with parsing response
+	 * @throws DOMException error parsing response
 	 */
-	private void populateScopusBeanMap(String resp, HashMap<String, ScopusBean> sbMap, StringBuffer errMsg) {
+	private void populateScopusBeanMap(String resp, Map<String, ScopusBean> sbMap, StringBuffer errMsg) throws DOMException, IOException {
 		try {
-			
-			if (resp.length() > 0) {
-				Document doc = loadXMLFromString(resp);
-				NodeList entryNodes = doc.getElementsByTagName("entry");
-
+			if(resp.length() > 0) {
 				// populate ScopusBean map
-				for (int e=0; e<entryNodes.getLength(); e++) {
-					Node entryNode = entryNodes.item(e);
+				for(Node entryNode : IterableAdaptor.adapt(XMLAide.getDocument(resp).getElementsByTagName("entry"))) {
 					String doi = null;
+					@SuppressWarnings("unused")
 					String title = null;
 					String scopusDocId = null;
+					@SuppressWarnings("unused")
 					String issn = null;
+					@SuppressWarnings("unused")
 					String volume = null;
+					@SuppressWarnings("unused")
 					String issue = null;
+					@SuppressWarnings("unused")
 					String pageRange = null;
 					boolean withinAffil = false;
 					ScopusBean sb = new ScopusBean();
-					ArrayList<Node> authors = new ArrayList<Node>();
-					NodeList entryChildNodes = entryNode.getChildNodes();
-					for (int j=0; j<entryChildNodes.getLength(); j++) {
-						Node entryChildNode = entryChildNodes.item(j);
-						if ("dc:identifier".equals(entryChildNode.getNodeName())) {
+					List<Node> authors = new ArrayList<Node>();
+					for(Node entryChildNode : IterableAdaptor.adapt(entryNode.getChildNodes())) {
+						if("dc:identifier".equals(entryChildNode.getNodeName())) {
 							scopusDocId = entryChildNode.getTextContent().replace("SCOPUS_ID:", "");
-						} else if ("author".equals(entryChildNode.getNodeName())) {
+						} else if("author".equals(entryChildNode.getNodeName())) {
 							authors.add(entryChildNode);
-						} else if ("prism:doi".equals(entryChildNode.getNodeName())) {
+						} else if("prism:doi".equals(entryChildNode.getNodeName())) {
 							doi = entryChildNode.getTextContent();
-						} else if ("dc:title".equals(entryChildNode.getNodeName())) {
+						} else if("dc:title".equals(entryChildNode.getNodeName())) {
 							title = entryChildNode.getTextContent();
-						} else if ("prism:issn".equals(entryChildNode.getNodeName())) {
+						} else if("prism:issn".equals(entryChildNode.getNodeName())) {
 							issn = entryChildNode.getTextContent();
-						} else if ("prism:volume".equals(entryChildNode.getNodeName())) {
+						} else if("prism:volume".equals(entryChildNode.getNodeName())) {
 							volume = entryChildNode.getTextContent();
-						} else if ("prism:issueIdentifier".equals(entryChildNode.getNodeName())) {
+						} else if("prism:issueIdentifier".equals(entryChildNode.getNodeName())) {
 							issue = entryChildNode.getTextContent();
-						} else if ("prism:pageRange".equals(entryChildNode.getNodeName())) {
+						} else if("prism:pageRange".equals(entryChildNode.getNodeName())) {
 							pageRange = entryChildNode.getTextContent();
-						} else if ("affiliation".equals(entryChildNode.getNodeName())) {
-							NodeList affilNodes = entryChildNode.getChildNodes();
-							for (int k=0; k<affilNodes.getLength(); k++) {
-								Node affilNode = affilNodes.item(k);
-								if ("afid".equals(affilNode.getNodeName())) {
+						} else if("affiliation".equals(entryChildNode.getNodeName())) {
+							for(Node affilNode : IterableAdaptor.adapt(entryChildNode.getChildNodes())) {
+								if("afid".equals(affilNode.getNodeName())) {
 									String affil = affilNode.getTextContent();
-									if (this.scopusAffilList != null && this.scopusAffilList.contains(affil)) {
+									if(this.scopusAffilList != null && this.scopusAffilList.contains(affil)) {
 										withinAffil = true;
 										break;
 									}
@@ -621,9 +588,8 @@ public class ScopusFetch extends NIHFetch {
 	
 					// check affiliation
 					boolean addToMap = false; // add to sbMap or not - default is false
-					if (this.scopusAffilLinked != null) {
-						if (("true".equals(this.scopusAffilLinked) && withinAffil) || 
-							("false".equals(this.scopusAffilLinked) && !withinAffil)) {
+					if(this.scopusAffilLinked != null) {
+						if(("true".equals(this.scopusAffilLinked) && withinAffil) || ("false".equals(this.scopusAffilLinked) && !withinAffil)) {
 							addToMap = true;
 						}
 					} else {
@@ -633,65 +599,56 @@ public class ScopusFetch extends NIHFetch {
 					// check if the article already exists in VIVO
 					/* comment out
 					boolean existsInVivo = false;
-					if (sb.getDoi() != null) { // try doi
+					if(sb.getDoi() != null) { // try doi
 						existsInVivo = isDoiInVivo(sb.getDoi());
 					}
-					if (!existsInVivo) { // try Scopus Doc ID
+					if(!existsInVivo) { // try Scopus Doc ID
 						existsInVivo = isScopusDocIdInVivo(sb.getScopusDocId());
 					}
 					*/
 					// add ScopusBean to map for Pubmed queries
-					if (!this.scopusDocIdList.contains(sb.getScopusDocId())) {
+					if(!this.scopusDocIdList.contains(sb.getScopusDocId())) {
 						/*
-						if (addToMap && !existsInVivo) {
+						if(addToMap && !existsInVivo) {
 							sbMap.put(sb.getScopusDocId(), sb);
 						}
 						*/
-						if (addToMap && sb.getScopusDocId() != null) {
+						if(addToMap && sb.getScopusDocId() != null) {
 							sbMap.put(sb.getScopusDocId(), sb);
 						}
 						this.scopusDocIdList.add(sb.getScopusDocId());
 					}
 				}
 			}
-		} catch (MalformedURLException e) {
-			log.error("populateScopusBeanMap MalformedURLException: ", e);
-			errMsg.append(e + "\n");
-		} 
-		catch (IOException e) {
-			log.error("populateScopusBeanMap IOException: ", e);
-			errMsg.append(e + "\n");
-		} 
-		catch (Exception e) {
-			log.error("populateScopusBeanMap Exception: ", e);
+		} catch(SAXException e) {
+			log.error("populateScopusBeanMap SAXException: ", e);
 			errMsg.append(e + "\n");
 		}
 	}
 	
 	/**
 	 * Query Pubmed by DOI
-	 * @param sbMap
-	 * @param pubmedMap
+	 * @param sbMap scopus bean map
+	 * @param pubmedMap pubmed map
+	 * @param errMsg error message buffer
 	 */
-	private void pubmedQueryByDoi(HashMap<String, ScopusBean> sbMap, HashMap<String, String> pubmedMap, 
-			StringBuffer errMsg) {
-
+	private void pubmedQueryByDoi(Map<String, ScopusBean> sbMap, Map<String, String> pubmedMap, StringBuffer errMsg) {
 		StringBuffer searchTermBuf = new StringBuffer();
 		try {
-			Iterator<String> sbIter = sbMap.keySet().iterator();
-			while (sbIter.hasNext()) {
-				String key = sbIter.next();
+			for(String key : sbMap.keySet()) {
 				ScopusBean sb = sbMap.get(key);
 				//if (sb.getDoi() != null && !isDoiInVivo(sb.getDoi())) {
-				if (sb.getDoi() != null) {
+				if(sb.getDoi() != null) {
 					String searchDoi = "(" + sb.getDoi().replaceAll("[()]", "") + "[doi])";
-					if (searchTermBuf.length() > 0) { searchTermBuf.append(" OR "); }
+					if(searchTermBuf.length() > 0) {
+						searchTermBuf.append(" OR ");
+					}
 					searchTermBuf.append(searchDoi);
 				}
 			}
 			//log.info(searchTermBuf.toString());
 			populatePubmedMap(searchTermBuf.toString(), sbMap, pubmedMap, true, false, errMsg);
-		} catch (Exception e) {
+		} catch(Exception e) {
 			log.error("pubmedQueryByDoi Exception: ", e);
 			errMsg.append(e + "\n");
 		}
@@ -699,22 +656,26 @@ public class ScopusFetch extends NIHFetch {
 
 	/**
 	 * Query Pubmed by Pubmed ID
-	 * @param pmidList
-	 * @param sbMap
-	 * @param pubmedMap
+	 * @param pmidList list of pubmed ids
+	 * @param sbMap scopus bean map
+	 * @param pubmedMap pubmed map
+	 * @param errMsg error message buffer
 	 */
-	private void pubmedQueryByPubmedId(ArrayList<String> pmidList, HashMap<String, ScopusBean> sbMap, 
-			HashMap<String, String> pubmedMap, StringBuffer errMsg) {
+	private void pubmedQueryByPubmedId(List<String> pmidList, Map<String, ScopusBean> sbMap, Map<String, String> pubmedMap, StringBuffer errMsg) {
 		StringBuffer searchTermBuf = new StringBuffer();
-		for (String pmid: pmidList) {
-			if (searchTermBuf.length() > 0) { searchTermBuf.append(" "); }
+		for(String pmid : pmidList) {
+			if(searchTermBuf.length() > 0) {
+				searchTermBuf.append(" ");
+			}
 			searchTermBuf.append(pmid);
 		}
-		if (searchTermBuf.length() > 0) { searchTermBuf.append("[uid]"); }
+		if(searchTermBuf.length() > 0) {
+			searchTermBuf.append("[uid]");
+		}
 		try {
 			//log.info(searchTermBuf.toString());
 			populatePubmedMap(searchTermBuf.toString(), sbMap, pubmedMap, false, true, errMsg);
-		} catch (Exception e) {
+		} catch(Exception e) {
 			log.error("pubmedQueryByPubmedId Exception: ", e);
 			errMsg.append(e + "\n");
 		}
@@ -722,15 +683,17 @@ public class ScopusFetch extends NIHFetch {
 
 	/**
 	 * Populate Pubmed map with metadata from Pubmed
-	 * @param searchTerm
-	 * @param sbMap
-	 * @param pubmedMap
+	 * @param searchTerm the term for which to search
+	 * @param sbMap the scopus bean map
+	 * @param pubmedMap the pubmed map
+	 * @param lookupDoi do we lookup doi
+	 * @param lookupPmid do we lookup pubmed id
+	 * @param errMsg error message buffer
 	 */
-	private void populatePubmedMap(String searchTerm, HashMap<String, ScopusBean> sbMap, 
-			HashMap<String, String> pubmedMap, boolean lookupDoi, boolean lookupPmid,
-			StringBuffer errMsg) {
+	private void populatePubmedMap(String searchTerm, Map<String, ScopusBean> sbMap, Map<String, String> pubmedMap, boolean lookupDoi, boolean lookupPmid, StringBuffer errMsg) {
 		try {
 			int recToFetch = getLatestRecord();
+			@SuppressWarnings("unused")
 			int intBatchSize = Integer.parseInt(this.getBatchSize());
 			this.setSearchTerm(searchTerm);
 			String[] env = runESearch(this.getSearchTerm());
@@ -738,68 +701,55 @@ public class ScopusFetch extends NIHFetch {
 			// publication found in Pubmed
 			if(env != null && !"null".equals(env[2]) && Integer.parseInt(env[2]) > 0) {
 				fetchRecords(env, "0", "" + recToFetch);
-				for (Document pubmedDoc: this.pubmedDocList) {
-					if (lookupDoi) {
+				for(Document pubmedDoc: this.pubmedDocList) {
+					if(lookupDoi) {
 						populateMapByDoi(pubmedDoc, sbMap, pubmedMap);
-					} else if (lookupPmid) {
+					} else if(lookupPmid) {
 						populateMapByPubmedId(pubmedDoc, sbMap, pubmedMap);
 					}
 				}
 			}
-		} catch (MalformedURLException e) {
-			log.error("populatePubmedMap MalformedURLException: ", e);
-			errMsg.append(e);
-		} 
-		catch (IOException e) {
+		} catch(IOException e) {
 			log.error("populatePubmedMap IOException: ", e);
 			errMsg.append(e);
-		} 
-		catch (Exception e) {
-			log.error("populatePubmedMap Exception: ", e);
+		} catch(TransformerException e) {
+			log.error("populatePubmedMap TransformerException: ", e);
 			errMsg.append(e);
 		}
 	}
 
 	/**
 	 * Populate Pubmed map by looking up the DOI value from ScopusBean map
-	 * @param pubmedDoc
-	 * @param sbMap
-	 * @param pubmedMap
+	 * @param pubmedDoc the pubmed xml document
+	 * @param sbMap the scopus bean map
+	 * @param pubmedMap the pubmed map
+	 * @throws TransformerException error transforming xml data
 	 */
-	private void populateMapByDoi(Document pubmedDoc, HashMap<String, ScopusBean> sbMap, 
-		HashMap<String, String> pubmedMap) {
-
+	private void populateMapByDoi(Document pubmedDoc, Map<String, ScopusBean> sbMap, Map<String, String> pubmedMap) throws TransformerException {
 		String doi = null;
-		Node pubmedNode = pubmedDoc.getDocumentElement();
-		NodeList articleIdNodes = pubmedDoc.getElementsByTagName("ArticleId");
-		for (int j=0; j<articleIdNodes.getLength(); j++) {
-			Node articleIdNode = articleIdNodes.item(j);
-			NamedNodeMap attrs = articleIdNode.getAttributes();
-			for (int i=0; i<attrs.getLength(); i++) {
-				if ("doi".equals(attrs.item(i).getNodeValue())) {
+		for(Node articleIdNode : IterableAdaptor.adapt(pubmedDoc.getElementsByTagName("ArticleId"))) {
+			for(Node x : IterableAdaptor.adapt(articleIdNode.getAttributes())) {
+				if("doi".equals(x.getNodeValue())) {
 					doi = articleIdNode.getTextContent();
 				}
 			}
 		}
-		
-		if (doi != null) {
+		if(doi != null) {
 			// get pmid
 			String pmid = null;
 			NodeList pmidNodes = pubmedDoc.getElementsByTagName("PMID");
-			if (pmidNodes != null) {
+			if(pmidNodes != null) {
 				pmid = pmidNodes.item(0).getTextContent();
 			}
-			Iterator<String> sbIter = sbMap.keySet().iterator();
-			while (sbIter.hasNext()) {
-				String key = sbIter.next();
+			for(String key : sbMap.keySet()) {
 				ScopusBean sb = sbMap.get(key);
-				if (doi.equals(sb.getDoi())) {
+				if(doi.equals(sb.getDoi())) {
 					sb.setIsInPubmed(true);
 					sb.setPubmedId(pmid);
 					// get authors
 					boolean completed = populateAuthId(pubmedDoc, sb);
-					if (completed) {
-						pubmedMap.put(pmid, nodeToString(pubmedDoc));
+					if(completed) {
+						pubmedMap.put(pmid, XMLAide.formatXML(pubmedDoc));
 					} else {
 						log.info("--- Cannot proceed with ingesting this article " + 
 							"(DOI: " + doi + ") to VIVO, " + 
@@ -813,60 +763,58 @@ public class ScopusFetch extends NIHFetch {
 
 	/**
 	 * Populate Pubmed map by looking up the Pubmed ID value from ScopusBean map
-	 * @param pubmedDoc
-	 * @param sbMap
-	 * @param pubmedMap
+	 * @param pubmedDoc the pubmed xml document
+	 * @param sbMap the scopus bean map
+	 * @param pubmedMap the pubmed map
+	 * @throws TransformerException error transforming xml data
 	 */
-	private void populateMapByPubmedId(Document pubmedDoc, HashMap<String, ScopusBean> sbMap, 
-		HashMap<String, String> pubmedMap) {
-
+	private void populateMapByPubmedId(Document pubmedDoc, Map<String, ScopusBean> sbMap, Map<String, String> pubmedMap) throws TransformerException {
 		String pmid = null;
 		NodeList pmidNodes = pubmedDoc.getElementsByTagName("PMID");
-		if (pmidNodes != null) {
+		if(pmidNodes != null) {
 			pmid = pmidNodes.item(0).getTextContent();
 		}
-		Iterator<String> sbIter = sbMap.keySet().iterator();
-		while (sbIter.hasNext()) {
-			String key = sbIter.next();
+		for(String key : sbMap.keySet()) {
 			ScopusBean sb = sbMap.get(key);
-			if (pmid.equals(sb.getPubmedId())) {
-				sb.setIsInPubmed(true);
-				// get authors
-				boolean completed = populateAuthId(pubmedDoc, sb);
-				if (completed) {
-					pubmedMap.put(pmid, nodeToString(pubmedDoc));
-				} else {
-					log.info("--- Cannot proceed with ingesting this article " + 
-						"(Pubmed ID: " + pmid + ") to VIVO, " + 
-						"mismatch between authors in Scopus and Pubmed");
+			if(pmid != null) {
+				if(pmid.equals(sb.getPubmedId())) {
+					sb.setIsInPubmed(true);
+					// get authors
+					boolean completed = populateAuthId(pubmedDoc, sb);
+					if(completed) {
+						pubmedMap.put(pmid, XMLAide.formatXML(pubmedDoc));
+					} else {
+						log.info("--- Cannot proceed with ingesting this article " + 
+							"(Pubmed ID: " + pmid + ") to VIVO, " + 
+							"mismatch between authors in Scopus and Pubmed");
+					}
+					break; // found - no need to look any further
 				}
-				break; // found - no need to look any further
 			}
 		}
 	}
 
 	/**
 	 * Populate Scopus map with Scopus metadata
-	 * @param sbMap
-	 * @param scopusMap
+	 * @param sbMap the scopus bean map
+	 * @param scopusMap the scopus map
+	 * @throws TransformerException error reading scopus data
 	 */
-	private void populateScopusMap(HashMap<String, ScopusBean> sbMap, HashMap<String, String> scopusMap) {
-		Iterator<String> sbIter = sbMap.keySet().iterator();
-		while (sbIter.hasNext()) {
-			String key = sbIter.next();
+	private void populateScopusMap(Map<String, ScopusBean> sbMap, Map<String, String> scopusMap) throws TransformerException {
+		for(String key : sbMap.keySet()) {
 			ScopusBean sb = sbMap.get(key);
-			if (!sb.isInPubmed()) {
+			if(!sb.isInPubmed()) {
 				Node entryNode = sb.getEntryNode();
-				scopusMap.put(sb.getScopusDocId(), nodeToString(entryNode));
+				scopusMap.put(sb.getScopusDocId(), XMLAide.formatXML(entryNode));
 			}
 		}
 	}
 
 	/**
 	 * Add Scopus Author ID to Pubmed metadata for ingest into VIVO
-	 * @param pubmedDoc
-	 * @param sb
-	 * @return
+	 * @param pubmedDoc the pubmed xml document
+	 * @param sb the scopus bean
+	 * @return true if author found, false otherwise
 	 */
 	private boolean populateAuthId(Document pubmedDoc, ScopusBean sb) {
 		boolean completed = true;
@@ -875,7 +823,7 @@ public class ScopusFetch extends NIHFetch {
 		NodeList pubmedAuthorNodes = pubmedDoc.getElementsByTagName("Author");
 		
 		// get Scopus authors
-		ArrayList<Node> scopusAuthorNodes = sb.getAuthors();
+		List<Node> scopusAuthorNodes = sb.getAuthors();
 		
 		boolean sameSize = false;
 		
@@ -883,17 +831,15 @@ public class ScopusFetch extends NIHFetch {
 			sameSize = true;
 		}
 		
-		if (sameSize) {
-			if (pubmedAuthorNodes.getLength() == scopusAuthorNodes.size()) {
-				for (int j=0; j<pubmedAuthorNodes.getLength(); j++) {
+		if(sameSize) {
+			if(pubmedAuthorNodes.getLength() == scopusAuthorNodes.size()) {
+				for(int j = 0; j < pubmedAuthorNodes.getLength(); j++) {
 					Node pubmedAuthorNode = pubmedAuthorNodes.item(j);
 					Node scopusAuthorNode = scopusAuthorNodes.get(j);
-					NodeList scopusAuthorChildNodes = scopusAuthorNode.getChildNodes();
 					String scopusAuthorId = null;
-					String scopusAuthorName = null;
-					for (int i=0; i<scopusAuthorChildNodes.getLength(); i++) {
-						Node scopusAuthorChildNode = scopusAuthorChildNodes.item(i);
-						if ("authid".equals(scopusAuthorChildNode.getNodeName())) {
+//					String scopusAuthorName = null;
+					for(Node scopusAuthorChildNode : IterableAdaptor.adapt(scopusAuthorNode.getChildNodes())) {
+						if("authid".equals(scopusAuthorChildNode.getNodeName())) {
 							scopusAuthorId = scopusAuthorChildNode.getTextContent();
 							Element scopusAuthorIdEl = pubmedDoc.createElement("authid");
 							scopusAuthorIdEl.setTextContent(scopusAuthorId);
@@ -903,29 +849,23 @@ public class ScopusFetch extends NIHFetch {
 				}
 			}
 		} else {
-			for (int j=0; j<pubmedAuthorNodes.getLength(); j++) {
-				Node pubmedAuthorNode = pubmedAuthorNodes.item(j);
-				NodeList pubmedAuthorChildNodes = pubmedAuthorNode.getChildNodes();
-				for (int k=0; k<pubmedAuthorChildNodes.getLength(); k++) {
-					Node pAuthCNode = pubmedAuthorChildNodes.item(k);
+			for(Node pubmedAuthorNode : IterableAdaptor.adapt(pubmedAuthorNodes)) {
+				for(Node pAuthCNode : IterableAdaptor.adapt(pubmedAuthorNode.getChildNodes())) {
 					if ("LastName".equals(pAuthCNode.getNodeName())) {
 						String lastname = pAuthCNode.getTextContent();
 						boolean foundLastname = false;
 						// search lastname from Scopus nodes and get authid
-						for (Node sAuthNode:scopusAuthorNodes) {
-							NodeList sAuthCNodes = sAuthNode.getChildNodes();
+						for(Node sAuthNode : scopusAuthorNodes) {
 							String authid = null;
 							String authname = null;
-							for (int i=0; i<sAuthCNodes.getLength(); i++) {
-								Node sAuthCNode = sAuthCNodes.item(i);
-								if ("authid".equals(sAuthCNode.getNodeName())) {
+							for(Node sAuthCNode : IterableAdaptor.adapt(sAuthNode.getChildNodes())) {
+								if("authid".equals(sAuthCNode.getNodeName())) {
 									authid = sAuthCNode.getTextContent();
-								} else if ("authname".equals(sAuthCNode.getNodeName())) {
+								} else if("authname".equals(sAuthCNode.getNodeName())) {
 									authname = sAuthCNode.getTextContent();
 								}
 							}
-							if (authname != null && 
-								authname.toLowerCase().indexOf(lastname.toLowerCase()) > -1) {
+							if(authname != null && authname.toLowerCase().indexOf(lastname.toLowerCase()) > -1) {
 								Element scopusAuthorIdEl = pubmedDoc.createElement("authid");
 								scopusAuthorIdEl.setTextContent(authid);
 								pubmedAuthorNode.appendChild(scopusAuthorIdEl);
@@ -933,10 +873,9 @@ public class ScopusFetch extends NIHFetch {
 								break; // lastname match found, no need to continue
 							}
 						}
-						if (!foundLastname) {
+						if(!foundLastname) {
 							completed = false;
-						//	log.info("--- Cannot proceed with ingesting this article to VIVO, " +
-						//			"mismatch between authors in Scopus and Pubmed - lastname: " + lastname + " and DOI: "+ doi);
+						//	log.info("--- Cannot proceed with ingesting this article to VIVO, " + "mismatch between authors in Scopus and Pubmed - lastname: " + lastname + " and DOI: "+ doi);
 						}
 					}
 				}
@@ -948,28 +887,23 @@ public class ScopusFetch extends NIHFetch {
 	/**
 	 * Write query results to individual files using either Pubmed ID or Scopus Document ID as
 	 * part of the file names.
-	 * @param authid
-	 * @param pubmedMap
-	 * @param scopusMap
+	 * @param authid the authid
+	 * @param pubmedMap the pubmed map
+	 * @param scopusMap the scopus map
+	 * @param errMsg error message buffer
 	 */
-	private void writeToFiles(String authid, HashMap<String, String> pubmedMap, 
-			HashMap<String, String> scopusMap, StringBuffer errMsg) {
+	private void writeToFiles(String authid, Map<String, String> pubmedMap, Map<String, String> scopusMap, StringBuffer errMsg) {
 		String header = "<?xml version=\"1.0\"?>\n<!DOCTYPE PubmedArticleSet PUBLIC \"-//NLM//DTD PubMedArticle, 1st January 2011//EN\" \"http://www.ncbi.nlm.nih.gov/entrez/query/DTD/pubmed_110101.dtd\">\n<PubmedArticleSet>\n";
 		String footer = "\n</PubmedArticleSet>";
 		
 		try {
-			Iterator<String> pubmedIter = pubmedMap.keySet().iterator();
-			while (pubmedIter.hasNext()) {
-				String pmid = pubmedIter.next();
+			for(String pmid : pubmedMap.keySet()) {
 				log.trace("Pubmed Writing to output");
 				String sanitizedXml = pubmedMap.get(pmid).replaceAll("<\\?xml version=\".*?>", "");
 				writeRecord(authid + "_" + pmid, header + sanitizedXml.trim() + footer);
 				log.trace("Pubmed Writing complete");
 			}
-			
-			Iterator<String> scopusIter = scopusMap.keySet().iterator();
-			while (scopusIter.hasNext()) {
-				String scopusDocId = scopusIter.next();
+			for(String scopusDocId : scopusMap.keySet()) {
 				String oriEntry = "<entry>";
 				String modEntry = "<entry xmlns:dc=\"http://purl.org/dc/elements/1.1/\" \n" +
 						"xmlns:atom=\"http://www.w3.org/2005/Atom\" \n" +
@@ -979,68 +913,10 @@ public class ScopusFetch extends NIHFetch {
 				writeRecord(authid + "_" + scopusDocId, scopusMap.get(scopusDocId).replace(oriEntry, modEntry));
 				log.trace("Scopus Writing complete");
 			}
-		} catch (MalformedURLException e) {
-			log.error("writeToFiles MalformedURLException: ", e);
-			errMsg.append(e);
-		} 
-		catch (IOException e) {
+		} catch(IOException e) {
 			log.error("writeToFiles IOException: ", e);
 			errMsg.append(e);
-		} 
-		catch (Exception e) {
-			log.error("writeToFiles Exception: ", e);
-			errMsg.append(e);
 		}
-	}
-
-	/**
-	 * Given the path to the filename, returns the file content.
-	 * @param path - path to filename
-	 * @return String
-	 */
-	private String getFileContent(String path) throws IOException {
-		String strContent = null;
-		if (path != null) {
-			try {
-			InputStream is = FileAide.getInputStream(path);
-			BufferedReader br = new BufferedReader(new InputStreamReader(is));
-			StringBuffer buf = new StringBuffer();
-			String line;
-			while ((line = br.readLine()) != null) {
-				buf.append(line + "\n");
-			}
-			br.close();
-			strContent = buf.toString();
-			} catch (IOException e) {
-				log.error("Could not get file content: ", e);
-				throw new IOException("Could not get file content: ", e);
-			}
-		}
-		return strContent;
-	}
-
-	/**
-	 * Method copied from WOSFetch. Should be a utility method.
-	 * @param documentNode a DOM node to be changed into a properly indented string
-	 * @return The indented string containing the node and sub-nodes
-	 */
-	private String nodeToString(Node documentNode) {
-		StreamResult result =null;
-		try {
-			Transformer	transformer = TransformerFactory.newInstance().newTransformer();
-			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-			
-			result = new StreamResult(new StringWriter());
-			DOMSource domSource = new DOMSource(documentNode);
-			transformer.transform(domSource, result);
-		} catch(TransformerException e) {
-			e.printStackTrace();
-		} catch(TransformerFactoryConfigurationError e1) {
-			e1.printStackTrace();
-		}
-		
-		return result.getWriter().toString();
 	}
 	
 	/**
@@ -1079,18 +955,19 @@ public class ScopusFetch extends NIHFetch {
 
 	/**
 	 * Extract DOI from Scopus feed
-	 * @param resp
-	 * @return
+	 * @param resp the response
+	 * @return the doi info
 	 */
-	private ArrayList extractDoi(String resp) {
-		ArrayList<String> doiList = new ArrayList<String>();
+	@SuppressWarnings("unused")
+	private List<String> extractDoi(String resp) {
+		List<String> doiList = new ArrayList<String>();
 		String doiTagStart = "<prism:doi>";
 		String doiTagEnd = "</prism:doi>";
 		String regex = doiTagStart + ".*?" + doiTagEnd;
 		Pattern p = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 		Matcher m = p.matcher(resp);
 		int c = 0;
-		while (m.find()) {
+		while(m.find()) {
 			String doi = resp.substring(m.start(), m.end()).replace(doiTagStart, "").replace(doiTagEnd, "");
 			doiList.add(doi);
 			c++;
@@ -1098,17 +975,8 @@ public class ScopusFetch extends NIHFetch {
 		return doiList;
 	}
 	
-	private Document loadXMLFromString(String xml) throws Exception {
-		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		factory.setIgnoringComments(true);
-		DocumentBuilder builder = factory.newDocumentBuilder();
-		InputSource is = new InputSource(new StringReader(xml));
-		return builder.parse(is);
-	}
-	
 	@Override
-	public void fetchRecords(String WebEnv, String QueryKey, String retStart, String numRecords) 
-			throws IOException {
+	public void fetchRecords(String WebEnv, String QueryKey, String retStart, String numRecords) throws IOException {
 		EFetchPubmedServiceStub.EFetchRequest req = new EFetchPubmedServiceStub.EFetchRequest();
 		req.setQuery_key(QueryKey);
 		req.setWebEnv(WebEnv);
@@ -1203,16 +1071,12 @@ public class ScopusFetch extends NIHFetch {
 		String[] pubmedXmls = newS.split(closingTag);
 		this.pubmedDocList = new ArrayList<Document>(); // reset
 		try {
-			for (String eachItem: pubmedXmls) {
+			for(String eachItem : pubmedXmls) {
 				String pubmedXml = eachItem + closingTag + "\n";
-				this.pubmedDocList.add(loadXMLFromString(pubmedXml));
+				this.pubmedDocList.add(XMLAide.getDocument(pubmedXml));
 			}
-		} catch (MalformedURLException e) {
-			throw new IOException("sanitizeXML MalformedURLException: ", e);
-		} catch (IOException e) {
-			throw new IOException("sanitizeXML IOException: ", e);
-		} catch (Exception e) {
-			throw new IOException("sanitizeXML Exception: ", e);
+		} catch(SAXException e) {
+			throw new IOException("sanitizeXML SAXException: ", e);
 		}
 	}
 	
@@ -1224,16 +1088,16 @@ public class ScopusFetch extends NIHFetch {
 	@Override
 	public void writeRecord(String id, String data) throws IOException {
 		log.trace("Adding Record "+id);
+		@SuppressWarnings("unused")
 		boolean docExists = false;
+		@SuppressWarnings("unused")
 		String pmid = "";
-		if (id.contains("_")) {
+		if(id.contains("_")) {
 			String[] idSplit = id.split("_");
 			pmid = idSplit[1];
 		}
-		if (this.vivoJena != null) {
-			
+		if(this.vivoJena != null) {
 			try {
-
 				/*
 				String askQuery = "PREFIX bibo: <http://purl.org/ontology/bibo/> ASK  { ?x bibo:pmid  \"" + pmid + "\" }";
 				
@@ -1249,15 +1113,8 @@ public class ScopusFetch extends NIHFetch {
 				*/
 				log.trace("Adding Record "+id);
 				getRh().addRecord(id, data, getClass());
-
-			} catch (MalformedURLException e) {
-				throw new IOException("writeRecord MalformedURLException: " + e);
-			} 
-			catch (IOException e) {
+			} catch(IOException e) {
 				throw new IOException("writeRecord IOException: " + e);
-			} 
-			catch (Exception e) {
-				throw new IOException("writeRecord Exception: " + e);
 			}
 		}
 	}
@@ -1297,105 +1154,238 @@ public class ScopusFetch extends NIHFetch {
 	 *
 	 */
 	private class ScopusBean {
+		/**
+		 * is this publication in pubmed
+		 */
 		private boolean isInPubmed = false; // default
+		/**
+		 * the scopus document id
+		 */
 		private String scopusDocId;
+		/**
+		 * the doi
+		 */
 		private String doi;
+		/**
+		 * the issn
+		 */
 		private String issn;
+		/**
+		 * the title
+		 */
 		private String title;
+		/**
+		 * the volume number
+		 */
 		private String volume;
+		/**
+		 * the issue number
+		 */
 		private String issue;
+		/**
+		 * the range of pages
+		 */
 		private String pageRange;
+		/**
+		 * pubmed id
+		 */
 		private String pmid;
-
+		/**
+		 * entry node
+		 */
 		private Node entryNode;
-		private ArrayList<Node> authors = new ArrayList<Node>();
+		/**
+		 * authors array list
+		 */
+		private List<Node> authors = new ArrayList<Node>();
 		
-		// setters
+		/**
+		 * Constructor
+		 */
+		public ScopusBean() {}
+
+		/**
+		 * Set isInPubmed
+		 * @param isInPubmed new value
+		 */
 		public void setIsInPubmed(boolean isInPubmed) {
 			this.isInPubmed = isInPubmed;
 		}
 		
+		/**
+		 * Set scopusDocId
+		 * @param scopusDocId new value
+		 */
 		public void setScopusDocId(String scopusDocId) {
 			this.scopusDocId = scopusDocId;
 		}
 		
-		public void setAuthors(ArrayList<Node> authors) {
+		/**
+		 * Set authors
+		 * @param authors new value
+		 */
+		public void setAuthors(List<Node> authors) {
 			this.authors = authors;
 		}
 		
+		/**
+		 * Set doi
+		 * @param doi new value
+		 */
 		public void setDoi(String doi) {
 			this.doi = doi;
 		}
 		
+		/**
+		 * Set issn
+		 * @param issn new value
+		 */
+		@SuppressWarnings("unused")
 		public void setIssn(String issn) {
 			this.issn = issn;
 		}
 		
+		/**
+		 * Set title
+		 * @param title new value
+		 */
+		@SuppressWarnings("unused")
 		public void setTitle(String title) {
 			this.title = title;
 		}
 		
+		/**
+		 * Set volume
+		 * @param volume new value
+		 */
+		@SuppressWarnings("unused")
 		public void setVolume(String volume) {
 			this.volume = volume;
 		}
 		
+		/**
+		 * Set issue
+		 * @param issue new value
+		 */
+		@SuppressWarnings("unused")
 		public void setIssue(String issue) {
 			this.issue = issue;
 		}
 		
+		/**
+		 * Set pageRange
+		 * @param pageRange new value
+		 */
+		@SuppressWarnings("unused")
 		public void setPageRange(String pageRange) {
 			this.pageRange = pageRange;
 		}
 
+		/**
+		 * Set entryNode
+		 * @param entryNode new value
+		 */
 		public void setEntryNode(Node entryNode) {
 			this.entryNode = entryNode;
 		}
 		
+		/**
+		 * Set pmid
+		 * @param pmid new value
+		 */
 		public void setPubmedId(String pmid) {
 			this.pmid = pmid;
 		}
 		
-		// getters
+		/**
+		 * Get isInPubmed
+		 * @return isInPubmed value
+		 */
 		public boolean isInPubmed() {
 			return this.isInPubmed;
 		}
 		
+		/**
+		 * Get scopusDocId
+		 * @return scopusDocId value
+		 */
 		public String getScopusDocId() {
 			return this.scopusDocId;
 		}
 		
-		public ArrayList<Node> getAuthors() {
+		/**
+		 * Get authors
+		 * @return authors value
+		 */
+		public List<Node> getAuthors() {
 			return this.authors;
 		}
 		
+		/**
+		 * Get doi
+		 * @return doi value
+		 */
 		public String getDoi() {
 			return this.doi;
 		}
 		
+		/**
+		 * Get issn
+		 * @return issn value
+		 */
+		@SuppressWarnings("unused")
 		public String getIssn() {
 			return this.issn;
 		}
 		
+		/**
+		 * Get title
+		 * @return title value
+		 */
+		@SuppressWarnings("unused")
 		public String getTitle() {
 			return this.title;
 		}
 		
+		/**
+		 * Get volume
+		 * @return volume value
+		 */
+		@SuppressWarnings("unused")
 		public String getVolume() {
 			return this.volume;
 		}
 		
+		/**
+		 * Get issue
+		 * @return issue value
+		 */
+		@SuppressWarnings("unused")
 		public String getIssue() {
 			return this.issue;
 		}
 		
+		/**
+		 * Get pageRange
+		 * @return pageRange value
+		 */
+		@SuppressWarnings("unused")
 		public String getPageRange() {
 			return this.pageRange;
 		}
 
+		/**
+		 * Get pmid
+		 * @return pmid value
+		 */
 		public String getPubmedId() {
 			return this.pmid;
 		}
 
+		/**
+		 * Get entryNode
+		 * @return entryNode value
+		 */
 		public Node getEntryNode() {
 			return this.entryNode;
 		}

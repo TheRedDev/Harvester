@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Assists in common tasks using Files
- * @author Christopher Haines hainesc@ufl.edu
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class FileAide {
 	/**
@@ -38,8 +38,7 @@ public class FileAide {
 	 * Set of registered temp files to delete on JVM shutdown
 	 */
 	static Set<String> deleteOnExitSet;
-
-
+	
 	/**
 	 * Resolves a FileObject relative to the execution directory
 	 * @param path the path to resolve
@@ -83,7 +82,6 @@ public class FileAide {
 		//log.debug("numFilesDeleted: " + numFilesDeleted);
 		
 		return numFilesDeleted == numFiles ? true : false;
-		
 	}
 	
 	/**
@@ -112,7 +110,7 @@ public class FileAide {
 	 */
 	public static boolean isFolder(String path) throws IOException {
 		FileType type = getFileObject(path).getType();
-		return (type == FileType.FOLDER );
+		return (type == FileType.FOLDER);
 	}
 	
 	/**
@@ -147,21 +145,58 @@ public class FileAide {
 	}
 	
 	/**
+	 * Resolves the path and gets the base name for this file path
+	 * @param path the path to resolve
+	 * @return the base file name
+	 * @throws IOException error resolving
+	 */
+	public static String getFileName(String path) throws IOException {
+		if(path == null) {
+			return null;
+		}
+		return getFileObject(path).getName().getBaseName();
+	}
+	
+	/**
+	 * Resolves the path and gets the paths for all children
+	 * @param path the path to resolve
+	 * @return set of children paths
+	 * @throws IOException error resolving
+	 */
+	public static Set<String> getChildren(String path) throws IOException {
+		LinkedHashSet<String> children = new LinkedHashSet<String>();
+		for(FileObject child : getFileObject(path).getChildren()) {
+			children.add(child.getName().getURI());
+		}
+		return children;
+	}
+	
+	/**
 	 * Resolves the path and gets an input stream for this file
 	 * @param path the path to resolve
 	 * @return the InputStream
 	 * @throws IOException error resolving
 	 */
-	 public static InputStream getInputStream(String path) throws IOException {
-	      if(path == null) {
-	         return null;
-	      }
-	      FileObject fileObj = getFileObject(path);
-	      FileContent fileContent = fileObj.getContent();
-	      InputStream is = fileContent.getInputStream();
-
-	      return is;
-	   }
+	public static InputStream getInputStream(String path) throws IOException {
+		if(path == null) {
+			return null;
+		}
+		FileObject fileObj = getFileObject(path);
+		FileContent fileContent = fileObj.getContent();
+		InputStream is = fileContent.getInputStream();
+		
+		return is;
+	}
+	
+	/**
+	 * Moves the file from one location to another
+	 * @param src the source file path
+	 * @param dest the dest file path
+	 * @throws IOException error moving file
+	 */
+	public static void moveFile(String src, String dest) throws IOException {
+		getFileObject(src).moveTo(getFileObject(dest));
+	}
 	
 //	/**
 //	 * Resolves the path and gets the contents of the file as a byte array
@@ -326,7 +361,7 @@ public class FileAide {
 	}
 	
 	/**
-	 * Creates an empty file in the default temporary-file directory, using the given prefix and suffix to generate its name. Invoking this method is equivalent to invoking createTempFile(prefix, suffix, null).
+	 * Creates an empty file in the default temporary-file directory, using the given prefix and suffix to generate its name.
 	 * @param prefix The prefix string to be used in generating the file's name; must be at least three characters long.
 	 * @param suffix The suffix string to be used in generating the file's name; may be null, in which case the suffix ".tmp" will be used.
 	 * @return An abstract pathname denoting a newly-created empty file.
@@ -335,34 +370,50 @@ public class FileAide {
 	 * @throws SecurityException - If a security manager exists and its SecurityManager.checkWrite(java.lang.String) method does not allow a file to be created.
 	 */
 	public static synchronized File createTempFile(String prefix, String suffix) throws IOException {
+		return createTempFile(prefix, suffix, true);
+	}
+	
+	/**
+	 * Creates an empty file in the default temporary-file directory, using the given prefix and suffix to generate its name.
+	 * @param prefix The prefix string to be used in generating the file's name; must be at least three characters long.
+	 * @param suffix The suffix string to be used in generating the file's name; may be null, in which case the suffix ".tmp" will be used.
+	 * @param addToDelOnExit add this temp file to the set to be deleted on runtime exit
+	 * @return An abstract pathname denoting a newly-created empty file.
+	 * @throws IllegalArgumentException - If the prefix argument contains fewer than three characters.
+	 * @throws IOException - If a file could not be created.
+	 * @throws SecurityException - If a security manager exists and its SecurityManager.checkWrite(java.lang.String) method does not allow a file to be created.
+	 */
+	public static synchronized File createTempFile(String prefix, String suffix, boolean addToDelOnExit) throws IOException {
 		File tempFile = File.createTempFile(prefix, suffix);
-		if ( deleteOnExitSet == null ) {
-			deleteOnExitSet = new LinkedHashSet<String>();
-			Runtime.getRuntime().addShutdownHook(new Thread() {
-				@Override
-				public void run() {
-					synchronized (FileAide.deleteOnExitSet) {
-						for ( String fpath : FileAide.deleteOnExitSet) {
-							try {
-								if (!delete(fpath) ) {
-									log.warn("Failed to delete temporary file space {}, please remove manually  ",fpath);
-								} else {
-									log.trace("Deleted temporary file space {}  ",fpath);
+		if(addToDelOnExit) {
+			if(deleteOnExitSet == null) {
+				deleteOnExitSet = new LinkedHashSet<String>();
+				Runtime.getRuntime().addShutdownHook(new Thread() {
+					@Override
+					public void run() {
+						synchronized (FileAide.deleteOnExitSet) {
+							for(String fpath : FileAide.deleteOnExitSet) {
+								try {
+									if(!delete(fpath)) {
+										log.warn("Failed to delete temporary file space {}, please remove manually  ", fpath);
+									} else {
+										log.trace("Deleted temporary file space {}  ", fpath);
+									}
+								} catch(IOException e) {
+									log.warn("Error deleting temporary file space " + fpath + ", please remove manually  ", e);
 								}
-							} catch(IOException e) {
-								log.warn("Failed to delete temporary file space {}, please remove manually  ",fpath);
 							}
+							FileAide.deleteOnExitSet.clear();
+							FileAide.deleteOnExitSet = null;
 						}
-						FileAide.deleteOnExitSet.clear();
-						FileAide.deleteOnExitSet = null;
 					}
-				}
-			});
+				});
+			}
+			synchronized (FileAide.deleteOnExitSet) {
+				FileAide.deleteOnExitSet.add(tempFile.getAbsolutePath());
+			}
 		}
-		synchronized (FileAide.deleteOnExitSet) {
-			FileAide.deleteOnExitSet.add(tempFile.getAbsolutePath());
-			log.trace("Allocating temporary file space {}  ",tempFile.getAbsolutePath());
-		}
+		log.trace("Allocating temporary file space {}  ", tempFile.getAbsolutePath());
 		return tempFile;
 	}
 }

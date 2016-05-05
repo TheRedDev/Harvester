@@ -22,16 +22,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.IterableAdaptor;
 import org.vivoweb.harvester.util.repo.RecordMetaData.RecordMetaDataType;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.shared.PropertyNotFoundException;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.shared.PropertyNotFoundException;
 
 /**
  * RecordHandler that stores data in a Jena Model
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class JenaRecordHandler extends RecordHandler {
 	/**
@@ -214,9 +214,35 @@ public class JenaRecordHandler extends RecordHandler {
 		}
 	}
 	
+//	/**
+//	 * Remove all records from this RecordHandler
+//	 * @throws IOException i/o error
+//	 */
+//	@Override
+//	public void truncate() throws IOException {
+//		this.model.executeUpdateQuery(
+//			"PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> " +
+//			"DELETE {" +
+//			"  ?s ?p ?o" +
+//			"} WHERE {" +
+//			"  ?s ?p ?o ." +
+//			"  ?s rdf:type <"+this.recType.getURI()+"> ." +
+//			"}"
+//		);
+//		this.model.executeUpdateQuery(
+//			"PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> " +
+//			"DELETE {" +
+//			"  ?s ?p ?o" +
+//			"} WHERE {" +
+//			"  ?s ?p ?o ." +
+//			"  ?s rdf:type <"+this.metaType.getURI()+"> ." +
+//			"}"
+//		);
+//	}
+	
 	/**
 	 * Iterator for JenaRecordHandler
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private class JenaRecordIterator implements Iterator<Record> {
 		
@@ -230,19 +256,7 @@ public class JenaRecordHandler extends RecordHandler {
 		 * @throws IOException error connecting
 		 */
 		protected JenaRecordIterator() throws IOException {
-			// create query string
-			String sQuery = "" +
-				"PREFIX rhns: <" + JenaRecordHandler.rhNameSpace + "> \n" +
-				"PREFIX lns: <" + JenaRecordHandler.this.dataType.getNameSpace() + "> \n" +
-				"PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> \n" +
-				"Select ?idField \n" +
-				"WHERE { \n" +
-				"  ?record rdf:type rhns:" + JenaRecordHandler.this.recType.getLocalName() + " . \n" +
-				"  ?record rhns:" + JenaRecordHandler.this.idType.getLocalName() + " ?idField . \n" +
-				"  ?record lns:" + JenaRecordHandler.this.dataType.getLocalName() + " ?dataField . \n" +
-				"} ORDER BY ?idField";
-			
-			this.resultSet = JenaRecordHandler.this.model.executeSelectQuery(sQuery, true, false);
+			this.resultSet = getRecordIDsRS();
 		}
 		
 		@Override
@@ -362,4 +376,37 @@ public class JenaRecordHandler extends RecordHandler {
 		}
 		return retVal;
 	}
+	
+	/**
+	 * Get all record ids result set
+	 * @return result set with all record ids
+	 * @throws IOException error reading
+	 */
+	protected ResultSet getRecordIDsRS() throws IOException {
+		// create query string
+		String sQuery = "" +
+			"PREFIX rhns: <" + JenaRecordHandler.rhNameSpace + "> \n" +
+			"PREFIX lns: <" + JenaRecordHandler.this.dataType.getNameSpace() + "> \n" +
+			"PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> \n" +
+			"Select ?idField \n" +
+			"WHERE { \n" +
+			"  ?record rdf:type rhns:" + JenaRecordHandler.this.recType.getLocalName() + " . \n" +
+			"  ?record rhns:" + JenaRecordHandler.this.idType.getLocalName() + " ?idField . \n" +
+			"  ?record lns:" + JenaRecordHandler.this.dataType.getLocalName() + " ?dataField . \n" +
+			"} ORDER BY ?idField";
+		
+		return JenaRecordHandler.this.model.executeSelectQuery(sQuery, true, false);
+	}
+
+	
+//	@Override
+//	public Set<String> getRecordIDs() throws IOException {
+//		Set<String> retVal = new HashSet<String>();
+//		ResultSet rs = getRecordIDsRS();
+//		QuerySolution a;
+//		while((a = rs.next()) != null) {
+//			retVal.add(a.getLiteral("idField").getString());
+//		}
+//		return retVal;
+//	}
 }

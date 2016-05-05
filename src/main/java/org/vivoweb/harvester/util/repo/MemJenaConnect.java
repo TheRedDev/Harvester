@@ -9,6 +9,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,17 +19,21 @@ import org.vivoweb.harvester.util.SpecialEntities;
 
 /**
  * Connection Helper for Memory Based Jena Models
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class MemJenaConnect extends TDBJenaConnect {
 	/**
 	 * SLF4J Logger
 	 */
-	private static Logger log = LoggerFactory.getLogger(MemJenaConnect.class);
+	static Logger log = LoggerFactory.getLogger(MemJenaConnect.class);
 	/**
 	 * Map of already used memory model names to directories
 	 */
 	private static HashMap<String, String> usedModelNames = new HashMap<String, String>();
+	/**
+	 * Set of opened
+	 */
+	static Set<MemJenaConnect> openMemJCs;
 	
 	/**
 	 * Constructor (Memory Default Model)
@@ -42,6 +48,7 @@ public class MemJenaConnect extends TDBJenaConnect {
 	 */
 	public MemJenaConnect(String modelName) {
 		super(getDir(modelName), modelName);
+		register(this);
 	}
 	
 	/**
@@ -55,6 +62,23 @@ public class MemJenaConnect extends TDBJenaConnect {
 	public MemJenaConnect(InputStream in, String namespace, String language) {
 		this(null);
 		loadRdfFromStream(in, namespace, language);
+		log.trace("loading data from input...");
+		log.trace("model size: "+getDataset().getDefaultModel().size());
+	}
+	
+	/**
+	 * Clone Constructor
+	 * @param original the MemJenaConnect to clone 
+	 * @param modelName the new model name
+	 */
+	private MemJenaConnect(MemJenaConnect original, String modelName) {
+		super(original.getDbDir(), modelName);
+		register(this);
+	}
+	
+	@Override
+	public JenaConnect neighborConnectClone(String modelName) {
+		return new MemJenaConnect(this, modelName);
 	}
 	
 	/**
@@ -69,16 +93,62 @@ public class MemJenaConnect extends TDBJenaConnect {
 			log.trace("attempting to create temp file for: " + mod);
 			File f;
 			try {
-				f = FileAide.createTempFile(mod, ".tdb");
+				f = FileAide.createTempFile(mod, ".tdb", false);
 			} catch(IOException e) {
 				throw new IllegalArgumentException(e);
 			}
 			log.trace("created: " + f.getAbsolutePath());
 			f.delete();
-			f.mkdir();
 			usedModelNames.put(mod, f.getAbsolutePath());
 		}
 		return usedModelNames.get(mod);
+	}
+	
+	/**
+	 * Register a MemJenaConnect to be closed at runtime shutdown
+	 * @param mjc the MemJenaConnect to register
+	 */
+	private static synchronized void register(MemJenaConnect mjc) {
+		if(openMemJCs == null) {
+			openMemJCs = new LinkedHashSet<MemJenaConnect>();
+			Runtime.getRuntime().addShutdownHook(new Thread() {
+				@Override
+				public void run() {
+					synchronized (MemJenaConnect.openMemJCs) {
+						for(MemJenaConnect omjc : MemJenaConnect.openMemJCs) {
+							log.debug("closing MemJenaConnect: "+omjc.getDbDir());
+							try {
+								omjc.close();
+							}catch(NullPointerException e) {
+								log.error("Error closing MemJenaConnect: "+omjc.getDbDir(), e);
+							}
+						}
+						for(MemJenaConnect omjc : MemJenaConnect.openMemJCs) {
+							String fpath = omjc.getDbDir();
+							try {
+								if(!FileAide.delete(fpath) ) {
+									log.warn("Failed to delete temporary file space {}, please remove manually  ",fpath);
+								} else {
+									log.trace("Deleted temporary file space {}  ",fpath);
+								}
+							} catch(IOException e) {
+								log.warn("Error deleting temporary file space "+fpath+", please remove manually  ", e);
+							}
+						}
+						MemJenaConnect.openMemJCs.clear();
+						MemJenaConnect.openMemJCs = null;
+					}
+				}
+			});
+		}
+		synchronized (MemJenaConnect.openMemJCs) {
+			MemJenaConnect.openMemJCs.add(mjc);
+		}
+	}
+	
+	@Override
+	public void close() {
+		super.close();
 	}
 	
 	/**

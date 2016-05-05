@@ -9,7 +9,7 @@ import org.apache.commons.codec.language.DoubleMetaphone;
 
 /**
  * Normalized DoubleMetaphone Difference Algorithm
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class NormalizedDoubleMetaphoneDifference implements Algorithm {
 	

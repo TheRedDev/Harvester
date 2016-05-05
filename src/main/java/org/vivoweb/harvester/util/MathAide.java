@@ -7,7 +7,7 @@ package org.vivoweb.harvester.util;
 
 /**
  * Set of math helper methods
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class MathAide {
 	/**
@@ -80,5 +80,36 @@ public class MathAide {
 			}
 		}
 		return index;
+	}
+	
+	/**
+	 * NVL test function
+	 * @param a parameter to test and return if not null
+	 * @param b parameter to return otherwise
+	 * @return A if A is not null, B otherwise 
+	 */
+	public static <T> T nvl(T a, T b) {
+		return (a == null)?b:a;
+	}
+	
+	/**
+	 * NVL2 test function
+	 * @param a parameter to test
+	 * @param b parameter to return if A is not null
+	 * @param c parameter to return otherwise
+	 * @return B if A is not null, C otherwise 
+	 */
+	public static <T> T nvl2(T a, T b, T c) {
+		return (a == null)?c:b;
+	}
+	
+	/**
+	 * NVL2 test function
+	 * @param a parameter to test
+	 * @param b parameter to return if A is not null
+	 * @return B if A is not null, null otherwise 
+	 */
+	public static <T> T nvl2(T a, T b) {
+		return (a == null)?null:b;
 	}
 }

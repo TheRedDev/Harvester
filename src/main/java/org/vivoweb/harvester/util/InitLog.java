@@ -18,7 +18,7 @@ import ch.qos.logback.core.joran.spi.JoranException;
 
 /**
  * Initialize Logging
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class InitLog {
 	
@@ -118,6 +118,17 @@ public class InitLog {
 	 * Setup the logger
 	 * @param args the commandline args passed
 	 * @param parser the arg parser to use
+	 * @throws IOException error processing
+	 * @throws UsageException user requested usage message
+	 */
+	public static void initLogger(String[] args, ArgParser parser) throws IOException, UsageException {
+		initLogger(args, parser, (String[]) null);
+	}
+	
+	/**
+	 * Setup the logger
+	 * @param args the commandline args passed
+	 * @param parser the arg parser to use
 	 * @param noLogIfNotSetFlags will turn off console logging if any of these flags are not set (note: wordiness will overwrite this)
 	 * @throws IOException error processing
 	 * @throws UsageException user requested usage message
@@ -128,25 +139,27 @@ public class InitLog {
 		System.setProperty("harvester-level", "OFF");
 		if((args != null) && (parser != null)) {
 			ArgList argList = parser.parse(args, false);
-			for(String testFlag : noLogIfNotSetFlags) {
-				boolean test = false;
-				try {
-					test = (!argList.has(testFlag));
-				} catch (IllegalArgumentException e) {
-					for(String subFlag : testFlag.split("|")) {
-						try {
-							if(argList.has(subFlag)) {
-								test = false;
-								break;
+			if(noLogIfNotSetFlags != null) {
+				for(String testFlag : noLogIfNotSetFlags) {
+					boolean test = false;
+					try {
+						test = (!argList.has(testFlag));
+					} catch (IllegalArgumentException e) {
+						for(String subFlag : testFlag.split("|")) {
+							try {
+								if(argList.has(subFlag)) {
+									test = false;
+									break;
+								}
+							} catch (IllegalArgumentException se) {
+								test = true;
 							}
-						} catch (IllegalArgumentException se) {
-							test = true;
 						}
 					}
-				}
-				if(test) {
-					logLevel = "OFF";
-					break;
+					if(test) {
+						logLevel = "OFF";
+						break;
+					}
 				}
 			}
 			if(argList.has("w")) {

@@ -92,9 +92,9 @@ public class HarvestLogFormatter {
 		// Objects and regex expression for parsing file's last-modified date.
 		Date logDate = new Date();
 		String dateString;
-		SimpleDateFormat sdf = new SimpleDateFormat();
-		String simpleDateFormatString = "yyyy-MM-dd-'T'HH:mm:ssZ"; 	// 2012-05-04-T17:15:23-04:00
-		sdf.applyPattern(simpleDateFormatString);
+		String dateStringFile;
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-'T'HH:mm:ssZ"); // 2012-05-04-T17:15:23-0400
+		SimpleDateFormat sdfFile = new SimpleDateFormat("yyyy-MM-dd'T'HHmmssZ"); // 2012-05-04T171523-0400
 		
 		// For each key/value pair in inputFiles map.
 		for (Map.Entry<String,String> me : set ) {
@@ -110,6 +110,7 @@ public class HarvestLogFormatter {
 				File tempFile = new File(me.getValue());
 				logDate = new Date(tempFile.lastModified());
 				dateString = sdf.format(logDate);
+				dateStringFile = sdfFile.format(logDate);
 				
 				//Load the file's contents into a Scanner.
 				fileContents = FileAide.getTextContent(me.getValue());
@@ -137,7 +138,7 @@ public class HarvestLogFormatter {
 				//	FileAide.createFile(this.destinationRootDir);
 				//}
 				
-				String outputPath = this.destinationRootDir + "vivo-triple-log-" + dateString + ".log";
+				String outputPath = this.destinationRootDir + "vivo-triple-log-" + dateStringFile + ".log";
 				
 				if (!FileAide.exists(outputPath))
 				{

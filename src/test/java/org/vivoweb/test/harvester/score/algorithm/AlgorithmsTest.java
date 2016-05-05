@@ -15,7 +15,7 @@ import org.vivoweb.harvester.score.algorithm.NormalizedTypoDifference;
 
 /**
  * Test Algorithms
- * @author Christopher Haines (hainesc@ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class AlgorithmsTest extends TestCase {
 	

@@ -7,6 +7,7 @@ package org.vivoweb.harvester.util.repo;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +17,7 @@ import org.vivoweb.harvester.util.repo.RecordMetaData.RecordMetaDataType;
 
 /**
  * Record Handler that uses a Java Map to store records in memory
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class MapRecordHandler extends RecordHandler {
 	/**
@@ -70,7 +71,7 @@ public class MapRecordHandler extends RecordHandler {
 	
 	/**
 	 * Iterator for MapRecordHandler
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private class MapRecordIterator implements Iterator<Record> {
 		/**
@@ -145,5 +146,11 @@ public class MapRecordHandler extends RecordHandler {
 			}
 		}
 		return retVal;
+	}
+
+	
+	@Override
+	public Set<String> getRecordIDs() {
+		return new HashSet<String>(this.map.keySet());
 	}
 }

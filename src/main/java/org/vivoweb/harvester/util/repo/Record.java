@@ -9,7 +9,7 @@ import java.io.IOException;
 
 /**
  * Individual record
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class Record {
 	/**

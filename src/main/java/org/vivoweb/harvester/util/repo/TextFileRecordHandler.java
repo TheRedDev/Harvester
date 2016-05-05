@@ -44,7 +44,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Record Handler that stores each record as a file in a directory
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class TextFileRecordHandler extends RecordHandler {
 	/**
@@ -358,7 +358,7 @@ public class TextFileRecordHandler extends RecordHandler {
 			Set<String> allFileListing = new TreeSet<String>();
 			log.debug("Compiling list of records");
 			try {
-				allFileListing.addAll(FileAide.getNonHiddenChildren(TextFileRecordHandler.this.fileDir));
+				allFileListing.addAll(getRecordIDs());
 			} catch(IOException e) {
 				log.error(e.getMessage());
 				log.debug("Stacktrace:",e);
@@ -389,7 +389,7 @@ public class TextFileRecordHandler extends RecordHandler {
 	
 	/**
 	 * MetaData File Parser for TextFileRecordHandlers
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private static class TextFileMetaDataParser extends DefaultHandler {
 		/**
@@ -515,5 +515,14 @@ public class TextFileRecordHandler extends RecordHandler {
 			}
 		}
 		return retVal;
+	}
+	
+	@Override
+	public Set<String> getRecordIDs() throws IOException {
+		Set<String> allFileListing = new TreeSet<String>();
+		log.debug("Compiling list of records");
+		allFileListing.addAll(FileAide.getNonHiddenChildren(TextFileRecordHandler.this.fileDir));
+		log.debug("List compiled");
+		return allFileListing;
 	}
 }

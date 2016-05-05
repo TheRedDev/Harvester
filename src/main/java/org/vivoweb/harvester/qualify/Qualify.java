@@ -6,7 +6,6 @@
 package org.vivoweb.harvester.qualify;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,15 +16,14 @@ import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
-import com.hp.hpl.jena.datatypes.RDFDatatype;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.rdf.model.Literal;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
+import org.apache.jena.datatypes.RDFDatatype;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.rdf.model.Literal;
+import org.apache.jena.rdf.model.Statement;
 
 /**
  * Qualify data using SPARQL queries
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  * @author Nicholas Skaggs (nskaggs@ctrip.ufl.edu)
  */
 public class Qualify {
@@ -93,7 +91,7 @@ public class Qualify {
 			argList.has("c")
 		);
 		if(argList.has("r") && argList.has("t")) {
-			log.warn("Both text and regex matchTerm's provided, using only regex");
+			log.warn("Both text and regex matchTerm provided, using only regex");
 		}
 	}
 	
@@ -120,9 +118,9 @@ public class Qualify {
 		this.namespace = removeNameSpace;
 		this.cleanPredicates = cleanPredicates;
 		this.cleanResources = cleanResources;
-		if(this.namespace == null || this.namespace.trim().isEmpty()) {
-			if(this.matchTerm == null || this.matchTerm.trim().isEmpty()) {
-				throw new IllegalArgumentException("Must specify either a match term (regex or text) or a removeNamespace");
+		if(StringUtils.isBlank(this.namespace)) {
+			if(StringUtils.isBlank(this.dataPredicate)) {
+				throw new IllegalArgumentException("Must specify either a dataPredicate or a removeNamespace");
 			}
 			if(this.cleanPredicates && this.cleanResources) {
 				throw new IllegalArgumentException("Cannot specify cleanPredicates and cleanResources when removeNamepsace is empty");
@@ -138,67 +136,77 @@ public class Qualify {
 	
 	/**
 	 * Replace records exactly matching uri & datatype & oldValue with newValue
-	 * @param dataType data type to match
-	 * @param oldValue old value to match
-	 * @param newValue new value to set
 	 */
-	private void strReplace(String dataType, String oldValue, String newValue) {
-		StmtIterator stmtItr = this.model.getJenaModel().listStatements(null, this.model.getJenaModel().createProperty(dataType), oldValue);
-		ArrayList<Statement> statements = new ArrayList<Statement>();
-		while(stmtItr.hasNext()) {
-			statements.add(stmtItr.next());
-		}
-		for(Statement stmt : statements) {
-			log.trace("Replacing record");
-			log.debug("oldValue: " + oldValue);
-			log.debug("newValue: " + newValue);
-			stmt.changeObject(newValue);
+	private void strReplace() {
+		for(Statement stmt : this.model.getJenaModel().listStatements(null, this.model.getJenaModel().createProperty(this.dataPredicate), this.matchTerm).toList()) {
+			if(this.namespace == null || stmt.getSubject().getURI().startsWith(this.namespace)) {
+				if(this.newVal != null) {
+					log.trace("Replacing record: "+stmt);
+				} else {
+					log.trace("Removing record: "+stmt);
+				}
+				if(this.newVal != null) {
+					log.debug("newValue: " + this.newVal);
+					stmt.changeObject(this.newVal);
+				} else {
+					stmt.remove();
+				}
+			}
 		}
 	}
 	
 	/**
 	 * Replace records matching predicate & the regexMatch with newValue
-	 * @param predicate data type to match
-	 * @param regexMatch regular expression to match
-	 * @param newValue new value
 	 * @throws IOException error connecting
 	 */
-	private void regexReplace(String predicate, String regexMatch, String newValue) throws IOException {
-		String query = "" + "SELECT ?s ?o \n" 
-						  + "WHERE {\n" 
-						  + "  ?s <" + predicate + "> ?o .\n" 
-						  + "  FILTER (regex(str(?o), \"" + regexMatch + "\", \"s\")) .\n" + "}";
+	private void regexReplace() throws IOException {
+		StringBuffer sb = new StringBuffer();
+		sb.append("SELECT ?s ?o \n");
+		sb.append("WHERE {\n");
+		sb.append("  ?s <").append(this.dataPredicate).append("> ?o .\n");
+		sb.append("  FILTER (regex(str(?o), \"").append(this.matchTerm).append("\", \"s\")) .\n");
+		if(this.namespace != null) {
+			sb.append("  FILTER (regex(str(?s), \"^" + this.namespace + "\")) .\n");
+		}
+		sb.append("}");
+		String query = sb.toString();
 		log.debug(query);
 		StringBuilder insertQ = new StringBuilder("INSERT DATA {\n");
 		StringBuilder deleteQ = new StringBuilder("DELETE DATA {\n");
 		int modifyCounter = 0;
 		for(QuerySolution s : IterableAdaptor.adapt(this.model.executeSelectQuery(query))) {
 			modifyCounter++;
-			//if (modifyCounter > 291){
-			//	break;
-			//}
 			Literal obj = s.getLiteral("o");
 			RDFDatatype datatype = obj.getDatatype();
+			if(datatype.getURI().equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#langString")) {
+				datatype = null;
+			}
 			String lang = obj.getLanguage();
 			String objStr = obj.getValue().toString();
 			String oldStr = encodeString(objStr, datatype, lang);
-			log.trace("Replacing record");
+			if(this.newVal != null) {
+				log.trace("Replacing record");
+			} else {
+				log.trace("Removing record");
+			}
 			log.debug("oldValue: " + oldStr);
-			String newStr = encodeString(objStr.replaceAll(regexMatch, newValue), datatype, lang);
 			String sUri = s.getResource("s").getURI();
-			log.debug("newValue: " + newStr);
-			// eliza: removed the single quotes in order to pass the test
-			// hope it doesn't break anything.
-			deleteQ.append("  <" + sUri + "> <" + predicate + "> " + oldStr + " . \n");
-			insertQ.append("  <" + sUri + "> <" + predicate + "> " + newStr + " . \n");
+			deleteQ.append("  <" + sUri + "> <" + this.dataPredicate + "> " + oldStr + " . \n");
+			if(this.newVal != null) {
+				String newStr = encodeString(objStr.replaceAll(this.matchTerm, this.newVal), datatype, lang);
+				log.debug("newValue: " + newStr);
+				insertQ.append("  <" + sUri + "> <" + this.dataPredicate + "> " + newStr + " . \n");
+			}
 		}
 		log.debug("Modifying " + Integer.toString(modifyCounter) + " Records.");
 		insertQ.append("} \n");
 		deleteQ.append("} \n");
 		log.debug("Removing old data:\n" + deleteQ);
 		this.model.executeUpdateQuery(deleteQ.toString());
-		log.debug("Inserting updated data:\n" + insertQ);
-		this.model.executeUpdateQuery(insertQ.toString());
+		if(this.newVal != null) {
+			log.debug("Inserting updated data:\n" + insertQ);
+			this.model.executeUpdateQuery(insertQ.toString());
+		}
 	}
 	
 	/**
@@ -249,7 +257,6 @@ public class Qualify {
 	 * @throws IOException error connecting
 	 */
 	public void execute() throws IOException {
-		log.debug(Integer.toString(this.model.size()));
 		if(StringUtils.isNotBlank(this.namespace)) {
 			if(this.cleanPredicates) {
 				log.info("Running clean predicates for " + this.namespace);
@@ -260,14 +267,39 @@ public class Qualify {
 				cleanResources(this.namespace);
 			}
 		}
-//		if(StringUtils.isNotBlank(this.matchTerm) && StringUtils.isNotBlank(this.dataPredicate) && StringUtils.isNotBlank(this.newVal)) {
-		if(StringUtils.isNotBlank(this.matchTerm) && StringUtils.isNotBlank(this.dataPredicate)) {
-			if(this.regex) {
-				log.info("Running Regex replace '" + this.dataPredicate + "': '" + this.matchTerm + "' with '" + this.newVal + "'");
-				regexReplace(this.dataPredicate, this.matchTerm, this.newVal);
+		if(StringUtils.isNotBlank(this.dataPredicate)) {
+			String ns = null;
+			if(this.namespace != null) {
+				ns = "Limiting to resources with URI beginning with \"" + this.namespace + "\"";
+			}
+			if(this.regex && this.matchTerm != null) {
+				if(this.newVal != null) {
+					log.info("Running regex match replace '" + this.dataPredicate + "': '" + this.matchTerm + "' with '" + this.newVal + "'");
+				} else {
+					log.info("Running regex match remove '" + this.dataPredicate + "': '" + this.matchTerm + "'");
+				}
+				if(ns != null) {
+					log.info(ns);
+				}
+				regexReplace();
 			} else {
-				log.info("Running text replace '" + this.dataPredicate + "': '" + this.matchTerm + "' with '" + this.newVal + "'");
-				strReplace(this.dataPredicate, this.matchTerm, this.newVal);
+				if(this.matchTerm != null) {
+					if(this.newVal != null) {
+						log.info("Running text match replace '" + this.dataPredicate + "': '" + this.matchTerm + "' with '" + this.newVal + "'");
+					} else {
+						log.info("Running text match remove '" + this.dataPredicate + "': '" + this.matchTerm + "'");
+					}
+				} else {
+					if(this.newVal != null) {
+						log.info("Running replace all '" + this.dataPredicate + "' with '" + this.newVal + "'");
+					} else {
+						log.info("Running remove all '" + this.dataPredicate + "'");
+					}
+				}
+				if(ns != null) {
+					log.info(ns);
+				}
+				strReplace();
 			}
 		}
 		this.model.sync();
@@ -281,11 +313,11 @@ public class Qualify {
 		ArgParser parser = new ArgParser("Qualify");
 		parser.addArgument(new ArgDef().setShortOption('i').setLongOpt("jenaConfig").setDescription("config file for jena model").withParameter(true, "CONFIG_FILE").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('I').setLongOpt("jenaOverride").setDescription("override the JENA_PARAM of jena model config using VALUE").withParameterValueMap("JENA_PARAM", "VALUE").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('d').setLongOpt("dataType").setDescription("data type (rdf predicate)").withParameter(true, "RDF_PREDICATE").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('r').setLongOpt("regexMatch").setDescription("match this regex expression").withParameter(true, "REGEX").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('t').setLongOpt("textMatch").setDescription("match this exact text string").withParameter(true, "MATCH_STRING").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('v').setLongOpt("value").setDescription("replace matching record data with this value").withParameter(true, "REPLACE_VALUE").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('n').setLongOpt("remove-namespace").setDescription("specify namespace for -p/--predicate-clean and -c/--clean-resources flag").withParameter(true, "RDF_NAMESPACE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('d').setLongOpt("dataType").setDescription("remove statements with predicate of specified data type (rdf predicate) optionally limited to resource uris starting with -n/--remove-namespace").withParameter(true, "RDF_PREDICATE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('r').setLongOpt("regexMatch").setDescription("filter for -d/--datatype where object matches this regex expression").withParameter(true, "REGEX").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('t').setLongOpt("textMatch").setDescription("filter for -d/--datatype where object matches this exact text string").withParameter(true, "MATCH_STRING").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('v').setLongOpt("value").setDescription("option for -d/--datatype where matching values of -r/--regexMatch or -t/--textMatch are replaced with this value").withParameter(true, "REPLACE_VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('n').setLongOpt("remove-namespace").setDescription("specify namespace for -p/--predicate-clean and -c/--clean-resources flag or optional namespace filter for -d/--dataType flag").withParameter(true, "RDF_NAMESPACE").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("predicate-clean").setDescription("remove all statements where the predicate is from the given -n/--remove-namespace").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('c').setLongOpt("clean-resources").setDescription("remove all statements where the subject or object is from the given -n/--remove-namespace").setRequired(false));
 		return parser;

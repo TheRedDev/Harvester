@@ -12,10 +12,24 @@ package org.vivoweb.harvester.fetch.linkeddata;
  * that don't provide a message.
  */
 public class LinkedDataFetchException extends Exception {
+	/**
+	 * serialize id
+	 */
+	private static final long serialVersionUID = 1466034904699547374L;
+
+	/**
+	 * Constructor
+	 * @param message the message
+	 * @param cause the cause
+	 */
 	public LinkedDataFetchException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
+	/**
+	 * Constructor
+	 * @param message the message
+	 */
 	public LinkedDataFetchException(String message) {
 		super(message);
 	}

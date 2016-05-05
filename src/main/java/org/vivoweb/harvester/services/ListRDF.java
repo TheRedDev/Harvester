@@ -15,26 +15,19 @@ import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
-import org.vivoweb.harvester.util.args.UsageException; 
-
+import org.vivoweb.harvester.util.args.UsageException;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
- 
 import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.methods.RequestBuilder;
-//import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils; 
 
 /**
  * List instances of classes in an instance of VIVO
@@ -46,31 +39,31 @@ public class ListRDF {
 	 * SLF4J Logger
 	 */
 	private static Logger log = LoggerFactory.getLogger(ListRDF.class);
-	 
-	/*
-	 *service URL
+	
+	/**
+	 * service URL
 	 */
 	private String url;
 	
-	/*
+	/**
 	 * VIVO admin user name
 	 */
 	private String username;
 	
-	/*
+	/**
 	 * VIVO admin password
 	 */
-	private String password; 
+	private String password;
 	
-	/*
+	/**
 	 * vClass to be displayed
 	 */
 	private String vClass;
 	
-	/*
+	/**
 	 * format of the output
 	 */
-	private String format; 
+	private String format;
 	
 	/**
 	 * Constructor
@@ -85,47 +78,62 @@ public class ListRDF {
 	/**
 	 * Constructor
 	 * @param argList parsed argument list
-	 * @throws IOException error creating task
 	 */
-	private ListRDF(ArgList argList) throws IOException {
-		
+	private ListRDF(ArgList argList) {
+		this(
+			argList.get("U"),
+			argList.get("u"),
+			argList.get("p"),
+			argList.get("v"),
+			argList.get("f")
+		);
+	}
+	
+	/**
+	 * Library Constructor
+	 * @param url service URL
+	 * @param username VIVO admin user name
+	 * @param password VIVO admin password
+	 * @param vClass vClass to be displayed
+	 * @param format format of the output
+	 */
+	private ListRDF(String url, String username, String password, String vClass, String format) {
 		// get service url
-		this.url = argList.get("U");
+		this.url = url;
 		
-		if (this.url == null) {
+		if(this.url == null) {
 			throw new IllegalArgumentException("Must provide the service URL");
 		}
 		
 		// get username
-		this.username = argList.get("u");
-				
+		this.username = username;
+		
 		// get password
-		this.password = argList.get("p");
+		this.password = password;
 		
 		// Require user name 
-		if (this.username == null) {
+		if(this.username == null) {
 			throw new IllegalArgumentException("Must provide a VIVO admin username");
 		}
-				
+		
 		// Require password
-		if (this.password == null) {
+		if(this.password == null) {
 			throw new IllegalArgumentException("Must provide a VIVO admin password");
 		}
 		
 		// get vClass
-		this.vClass = argList.get("v");
-				
-		if (this.url == null) {
+		this.vClass = vClass;
+		
+		if(this.url == null) {
 			throw new IllegalArgumentException("Must provide the name of a vClass");
 		}
 		
 		// get format
-		this.format = argList.get("f");
-						
-		if (this.format == null) {
-		   this.format = "text";
-		} 
-		 
+		this.format = format;
+		
+		if(this.format == null) {
+			this.format = "text";
+		}
 	}
 	
 	/**
@@ -133,58 +141,55 @@ public class ListRDF {
 	 * @throws IOException error
 	 */
 	private void execute() throws IOException {
-	   //System.out.println("To be implemented");
-	   // test if format was specified, default to text/plain
-	   Header header = null;
-	   if (this.format.equals("ntriples")) {	    	  
-	      header = new BasicHeader(HttpHeaders.ACCEPT, "text/plain");
-	   } else if (this.format.equals("rdfxml")) { 
-	      header = new BasicHeader(HttpHeaders.ACCEPT, "application/rdf+xml");
-	   } else if (this.format.equals("n3")) {
-		  header = new BasicHeader(HttpHeaders.ACCEPT, "text/n3");  
-	   } else if (this.format.equals("turtle")) {
-		  header = new BasicHeader(HttpHeaders.ACCEPT, "text/turtle");  
-	   } else if (this.format.equals("json")) {
-		  header = new BasicHeader(HttpHeaders.ACCEPT, "application/json");  
-	   } else {
-		   header = new BasicHeader(HttpHeaders.ACCEPT, "text/plain");   
-	   }
-	    
-	   CloseableHttpClient httpclient = HttpClients.createDefault();
-	    
-	   try {
-		    
-	      HttpPost httpPost = new HttpPost(this.url);
-	      httpPost.addHeader(header);
-	      List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-	      nvps.add(new BasicNameValuePair("email", this.username));
-	      nvps.add(new BasicNameValuePair("password", this.password));
-	      
-	      nvps.add(new BasicNameValuePair("vclass", this.vClass));
-	      
-	      
-	      httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-	      CloseableHttpResponse response = httpclient.execute(httpPost);
-	      try {
-              System.out.println(response.getStatusLine());
-              HttpEntity entity = response.getEntity();
-              InputStream is = entity.getContent();
-              try {
-            	 IOUtils.copy(is, System.out);
-              } finally {
-                 is.close();
-              }
-              
-          } finally {
-              response.close();
-          }
-	       
-	   } finally {
-	      httpclient.close();	
-	   }
-	   
-	   
-	   
+		//System.out.println("To be implemented");
+		// test if format was specified, default to text/plain
+		Header header = null;
+		if(this.format.equals("ntriples")) {
+			header = new BasicHeader(HttpHeaders.ACCEPT, "text/plain");
+		} else if(this.format.equals("rdfxml")) {
+			header = new BasicHeader(HttpHeaders.ACCEPT, "application/rdf+xml");
+		} else if(this.format.equals("n3")) {
+			header = new BasicHeader(HttpHeaders.ACCEPT, "text/n3");
+		} else if(this.format.equals("turtle")) {
+			header = new BasicHeader(HttpHeaders.ACCEPT, "text/turtle");
+		} else if(this.format.equals("json")) {
+			header = new BasicHeader(HttpHeaders.ACCEPT, "application/json");
+		} else {
+			header = new BasicHeader(HttpHeaders.ACCEPT, "text/plain");
+		}
+		
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		
+		try {
+			
+			HttpPost httpPost = new HttpPost(this.url);
+			httpPost.addHeader(header);
+			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+			nvps.add(new BasicNameValuePair("email", this.username));
+			nvps.add(new BasicNameValuePair("password", this.password));
+			
+			nvps.add(new BasicNameValuePair("vclass", this.vClass));
+			
+			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+			CloseableHttpResponse response = httpclient.execute(httpPost);
+			try {
+				System.out.println(response.getStatusLine());
+				HttpEntity entity = response.getEntity();
+				InputStream is = entity.getContent();
+				try {
+					IOUtils.copy(is, System.out);
+				} finally {
+					is.close();
+				}
+				
+			} finally {
+				response.close();
+			}
+			
+		} finally {
+			httpclient.close();
+		}
+		
 	}
 	
 	/**
@@ -197,8 +202,8 @@ public class ListRDF {
 		
 		parser.addArgument(new ArgDef().setShortOption('v').setLongOpt("vclass").withParameter(true, "VCLASS").setDescription("the vclass to be displayed").setRequired(true));
 		parser.addArgument(new ArgDef().setShortOption('f').setLongOpt("format").withParameter(true, "FORMAT").setDescription("the format of the output (text, ntriples, n3, rdfxml, json").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('U').setLongOpt("url").withParameter(true, "URL").setDescription("service url").setRequired(true));  
-		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("username").withParameter(true, "USERNAME").setDescription("vivo admin user name").setRequired(true)); 
+		parser.addArgument(new ArgDef().setShortOption('U').setLongOpt("url").withParameter(true, "URL").setDescription("service url").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("username").withParameter(true, "USERNAME").setDescription("vivo admin user name").setRequired(true));
 		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("password").withParameter(true, "PASSWORD").setDescription("vivo admin password").setRequired(true));
 		return parser;
 	}
@@ -215,7 +220,7 @@ public class ListRDF {
 			new ListRDF(args).execute();
 		} catch(IllegalArgumentException e) {
 			log.error(e.getMessage());
-			log.debug("Stacktrace:",e);
+			log.debug("Stacktrace:", e);
 			System.out.println(getParser().getUsage());
 			error = e;
 		} catch(UsageException e) {
@@ -224,7 +229,7 @@ public class ListRDF {
 			error = e;
 		} catch(Exception e) {
 			log.error(e.getMessage());
-			log.debug("Stacktrace:",e);
+			log.debug("Stacktrace:", e);
 			error = e;
 		} finally {
 			log.info(getParser().getAppName() + ": End");

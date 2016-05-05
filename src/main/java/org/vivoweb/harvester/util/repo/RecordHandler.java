@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -31,7 +32,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Record Handler Interface
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public abstract class RecordHandler implements Iterable<Record> {
 	/**
@@ -108,6 +109,20 @@ public abstract class RecordHandler implements Iterable<Record> {
 	 */
 	public Record getRecord(String recID) throws IllegalArgumentException, IOException {
 		return new Record(recID, getRecordData(recID), this);
+	}
+	
+	/**
+	 * Get a record
+	 * @return record ids
+	 * @throws IOException error reading
+	 */
+	@SuppressWarnings("unused")
+	public Set<String> getRecordIDs() throws IOException {
+		Set<String> ids = new HashSet<String>();
+		for(Record r : this) {
+			ids.add(r.getID());
+		}
+		return ids;
 	}
 	
 	/**
@@ -321,7 +336,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 	
 	/**
 	 * Config Parser for RecordHandlers
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private static class RecordHandlerParser extends DefaultHandler {
 		/**
@@ -461,6 +476,16 @@ public abstract class RecordHandler implements Iterable<Record> {
 	public abstract Set<String> find(String idText) throws IOException;
 	
 	/**
+	 * Remove all records from this RecordHandler
+	 * @throws IOException i/o error
+	 */
+	public void truncate() throws IOException {
+		for(Record r : this) {
+			delRecord(r.getID());
+		}
+	}
+	
+	/**
 	 * Run from commandline
 	 * @param args the commandline args
 	 * @throws IOException error parsing args
@@ -473,6 +498,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 		String recordId = argList.get("r");
 		String value = argList.get("v");
 		String output = argList.get("o");
+		boolean truncate = argList.has("t");
 		PrintStream os;
 		if(output != null && value != null) {
 			os = new PrintStream(FileAide.getOutputStream(output));
@@ -506,6 +532,9 @@ public abstract class RecordHandler implements Iterable<Record> {
 		if(output != null) {
 			os.close();
 		}
+		if(truncate) {
+			rh.truncate();
+		}
 	}
 	
 	/**
@@ -519,6 +548,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 		parser.addArgument(new ArgDef().setShortOption('r').setLongOpt("recordId").withParameter(true, "RECORD_ID").setDescription("the record id to use").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('v').setLongOpt("value").withParameter(true, "RECORD_VALUE").setDescription("set the value of RECORD_ID to be RECORD_VALUE").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("output-file").withParameter(true, "FILE_PATH").setDescription("output to this file rather than stdout").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('t').setLongOpt("truncate").setDescription("truncate this record handler").setRequired(false));
 		return parser;
 	}
 	

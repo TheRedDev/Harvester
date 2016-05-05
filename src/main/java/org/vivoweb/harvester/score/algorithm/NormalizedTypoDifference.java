@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Calculates the difference of two strings and accounts for typos
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  */
 public class NormalizedTypoDifference extends NormalizedDamerauLevenshteinDifference {
 	/**

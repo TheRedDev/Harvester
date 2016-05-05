@@ -12,7 +12,7 @@ import ch.qos.logback.core.spi.FilterReply;
 
 /**
  * ConsoleLogFilter
- * @author Christopher Haines
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class ConsoleLogFilter extends Filter<ILoggingEvent> {
 	

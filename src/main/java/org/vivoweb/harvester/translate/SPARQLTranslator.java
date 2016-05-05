@@ -6,15 +6,12 @@
 package org.vivoweb.harvester.translate;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.vivoweb.harvester.score.algorithm.Algorithm;
 import org.vivoweb.harvester.util.FileAide;
 import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.args.ArgDef;
@@ -24,16 +21,8 @@ import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
 import org.vivoweb.harvester.util.repo.MemJenaConnect;
 import org.vivoweb.harvester.util.repo.RecordHandler;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.QueryExecution;
-import com.hp.hpl.jena.query.QueryExecutionFactory;
-import com.hp.hpl.jena.query.QueryFactory;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.Syntax;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.sparql.function.library.e;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
 
 /**
  * Takes XML Files and uses an XSL file to translate the data into the desired ontology
@@ -46,10 +35,12 @@ public class SPARQLTranslator {
 	 * the log property for logging errors, information, debugging
 	 */
 	private static Logger log = LoggerFactory.getLogger(SPARQLTranslator.class);
-	/**
-	 * The translation file is the map that will reconstruct our input stream's document into the appropriate format
-	 */
-	// private String sparqlConstruct;
+	
+//	/**
+//	 * The translation file is the map that will reconstruct our input stream's document into the appropriate format
+//	 */
+//	 private String sparqlConstruct;
+	
 	/**
 	 * in stream is the stream containing the file (xml) that we are going to translate
 	 * @TODO possibly remove and switch to passing streams to xmlTranslate
@@ -61,12 +52,13 @@ public class SPARQLTranslator {
 	 * @TODO possibly remove and switch to passing streams to xmlTranslate
 	 */
 	protected JenaConnect outputJC;
+	
 	/**
-	 * 
+	 * the sparql query
 	 */
 	protected String sparqlQuery;
 	/**
-	 * 
+	 * the output record for the translated files
 	 */
 	protected RecordHandler outputRH;
 	
@@ -90,7 +82,6 @@ public class SPARQLTranslator {
 	 * @throws IOException error reading files
 	 */
 	private SPARQLTranslator(ArgList argumentList) throws IOException {
-		
 		this(
 			prepDataset(argumentList.getValueMap("i"), argumentList.getMultiValueMap("I")), 
 			JenaConnect.parseConfig(argumentList.get("o"), argumentList.getValueMap("O")), 
@@ -99,16 +90,14 @@ public class SPARQLTranslator {
 		);
 	}
 	
-
 	/**
 	 * Constructor
-	 * @param inputDS the input models
+	 * @param inputJC the input models
 	 * @param outputJC the output model
 	 * @param outputRH the output recordhandler
 	 * @param sparqlQuery the sparql query
 	 */
 	public SPARQLTranslator(JenaConnect inputJC, JenaConnect outputJC, RecordHandler outputRH, String sparqlQuery) {
-	
 		this.inputJC = inputJC;
 		this.outputJC = outputJC;
 		this.outputRH = outputRH;
@@ -149,53 +138,28 @@ public class SPARQLTranslator {
 		log.info("Translation: End");
 	}
 	
-	/**
-	 * @param jenas
-	 * @return
-	 * @throws IOException
-	 */
-	private static JenaConnect prepDataset(List<String> jenas) throws IOException {
-		// Bring all models into a single Dataset
-		JenaConnect fullJena = new MemJenaConnect("urn:x-arq:UnionGraph");
-		JenaConnect[] arrayJena = new JenaConnect[jenas.size()];
-		for (ListIterator<String> i = jenas.listIterator(); i.hasNext();){
-			int indexOf = i.nextIndex();
-			String config = i.next();
-			arrayJena[indexOf] = fullJena.neighborConnectClone("http://vivoweb.org/harvester/model/translate/model"+i.nextIndex());
-			arrayJena[indexOf].loadRdfFromJC(JenaConnect.parseConfig(config));
-			
-			log.trace("Input Model " + arrayJena[indexOf].getModelName() + " with " + arrayJena[indexOf].size() + " statements");
-		}
-		
-		if(!fullJena.executeAskQuery("ASK { ?s ?p ?o }")) {
-			log.trace("Empty Dataset");
-		}
-		return fullJena;
-	}
-	
 	
 	/**
-	 * @param inputs
-	 * @param overrides
-	 * @return
-	 * @throws IOException
+	 * Bring all models into a single Dataset
+	 * @param inputs the config files
+	 * @param overrides the overrides for each config
+	 * @return the JenaConnect pointed at the UnionGraph
+	 * @throws IOException error connecting to jena
 	 */
 	private static JenaConnect prepDataset(Map<String, String> inputs, Map<String, Map<String, String>> overrides) throws IOException {
-		// Bring all models into a single Dataset
 		JenaConnect fullJena = new MemJenaConnect("urn:x-arq:UnionGraph");
-		JenaConnect[] arrayJena = new JenaConnect[inputs.size()];
-		int indexOf = 0;
-		for (Iterator<Entry<String, String>> mapi = inputs.entrySet().iterator(); mapi.hasNext();){
-			Entry<String, String> element = mapi.next();
+		Set<JenaConnect> setJena = new HashSet<JenaConnect>();
+		for(Entry<String, String> element : inputs.entrySet()) {
 			String config = element.getValue();
 			
 			Map<String, String> overrideMap = overrides.get(element.getKey());
 						
-			arrayJena[indexOf] = fullJena.neighborConnectClone("http://vivoweb.org/harvester/model/translate/model"+indexOf);
-			arrayJena[indexOf].loadRdfFromJC(JenaConnect.parseConfig(config, overrideMap));
 			
-			log.trace("Input Model " + arrayJena[indexOf].getModelName() + " with " + arrayJena[indexOf].size() + " statements");
-			indexOf++;
+			JenaConnect targetJC = fullJena.neighborConnectClone("http://vivoweb.org/harvester/model/translate/model"+setJena.size());
+			targetJC.loadRdfFromJC(JenaConnect.parseConfig(config, overrideMap));
+			setJena.add(targetJC);
+			
+			log.trace("Input Model " + targetJC.getModelName() + " with " + targetJC.size() + " statements");
 		}
 		
 		if(!fullJena.executeAskQuery("ASK { ?s ?p ?o }")) {

@@ -15,10 +15,10 @@ import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.qualify.Smush;
 import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.repo.JenaConnect;
-//import org.vivoweb.harvester.util.repo.RDBJenaConnect;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import org.vivoweb.harvester.util.repo.MemJenaConnect;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 
 /**
  * Testing the Ported and altered Smush Resources
@@ -44,8 +44,7 @@ public class SmushTest extends TestCase {
 	public void setUp() throws Exception {
 		InitLog.initLogger(null, null);
 		this.namespace = "http://vivo.test.edu/individual/";
-//		this.outputModel = new SDBJenaConnect("jdbc:h2:mem:testSmushoutput", "sa", "", "H2", "org.h2.Driver", "layout2", "testSmushoutput");
-		//this.inputModel = new RDBJenaConnect("jdbc:h2:mem:testSmushinput;MODE=HSQLDB", "sa", "", "HSQLDB", "org.h2.Driver", "testSmushinput");
+		this.inputModel = new MemJenaConnect();
 		String testData = "" +
 			"<rdf:RDF" +
 			"\n xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"" +
@@ -150,33 +149,34 @@ public class SmushTest extends TestCase {
 		
 		Smush testSubject = new Smush(this.inputModel,predicates,this.namespace);
 
+		log.trace("Before:\n" + this.inputModel.exportRdfToString());
+		
 		testSubject.execute();
-		{
-			log.trace("The output model :\n" + this.inputModel.exportRdfToString());
-			StringBuilder query = new StringBuilder();
-	
-			query.append("PREFIX rdf:	<http://www.w3.org/1999/02/22-rdf-syntax-ns#>");
-			query.append("PREFIX bibo:	<http://purl.org/ontology/bibo/>");
-			query.append("PREFIX vitro:	<http://vitro.mannlib.cornell.edu/ns/vitro/public#>");
-			query.append("PREFIX localVivo:	<http://vivo.test.edu/ontology/vivo-test/>");
-			query.append("PREFIX core:	<http://vivoweb.org/ontology/core#>");
-			query.append("PREFIX rdfs:	<http://www.w3.org/2000/01/rdf-schema#>");
-			query.append("PREFIX foaf:	<http://xmlns.com/foaf/0.1/>");
-			query.append("SELECT ?uri WHERE{");
-			query.append("?uri localVivo:uniqueId \"1234567890\" .");
-			query.append("}");
-			ResultSet rs = this.inputModel.executeSelectQuery(query.toString());
-			log.debug("query result set :\n");
-			ArrayList<String> list = new ArrayList<String>();
-			for(String var : rs.getResultVars()){
-				while(rs.hasNext()){
-					String line = rs.next().get(var).toString();
-					list.add(line);
-					log.debug(line);
-				}
+		
+		log.trace("After:\n" + this.inputModel.exportRdfToString());
+		StringBuilder query = new StringBuilder();
+
+		query.append("PREFIX rdf:	<http://www.w3.org/1999/02/22-rdf-syntax-ns#>");
+		query.append("PREFIX bibo:	<http://purl.org/ontology/bibo/>");
+		query.append("PREFIX vitro:	<http://vitro.mannlib.cornell.edu/ns/vitro/public#>");
+		query.append("PREFIX localVivo:	<http://vivo.test.edu/ontology/vivo-test/>");
+		query.append("PREFIX core:	<http://vivoweb.org/ontology/core#>");
+		query.append("PREFIX rdfs:	<http://www.w3.org/2000/01/rdf-schema#>");
+		query.append("PREFIX foaf:	<http://xmlns.com/foaf/0.1/>");
+		query.append("SELECT ?uri WHERE{");
+		query.append("?uri localVivo:uniqueId \"1234567890\" .");
+		query.append("}");
+		ResultSet rs = this.inputModel.executeSelectQuery(query.toString());
+		log.debug("query result set :\n");
+		ArrayList<String> list = new ArrayList<String>();
+		for(String var : rs.getResultVars()){
+			while(rs.hasNext()){
+				String line = rs.next().get(var).toString();
+				list.add(line);
+				log.debug(line);
 			}
-			assertTrue(list.size() == 1);//Node of the proper namespace is reduced
 		}
+		assertTrue(list.size() == 1);//Node of the proper namespace is reduced
 		
 		log.info("END testExecSmushResources");
 	}

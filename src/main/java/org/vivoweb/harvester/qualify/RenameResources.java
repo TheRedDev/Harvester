@@ -17,19 +17,19 @@ import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
-import com.hp.hpl.jena.graph.BulkUpdateHandler;
-import com.hp.hpl.jena.graph.Graph;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.reasoner.InfGraph;
-import com.hp.hpl.jena.util.iterator.ExtendedIterator;
-import com.hp.hpl.jena.util.iterator.Filter;
+import org.apache.jena.graph.GraphUtil;
+import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.reasoner.InfGraph;
+import org.apache.jena.util.iterator.ExtendedIterator;
+import java.util.function.Predicate;
 
 /**
  * Changes the namespace for all matching uris
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class RenameResources {
 	/**
@@ -110,8 +110,8 @@ public class RenameResources {
 	 * @param uri A new URI for resource old, or <code>null</code> to rename old to a bNode
 	 * @return A new resource that occupies the same position in the graph as old, but which
 	 * has the new given URI.
-	 * @author jena team - see com.hp.hpl.jena.util.ResourceUtils
-	 * @author hainesc - fixed to not cause ConcurrentModificationException in TDB
+	 * @author jena team - see org.apache.jena.util.ResourceUtils
+	 * @author Christopher Haines (chris@chrishaines.net) - fixed to not cause ConcurrentModificationException in TDB
 	 */
 	public static Resource renameResource(final Resource old, final String uri) {
 		// Let's work directly with the Graph. Faster if old is attached to a InfModel (~2 times).
@@ -140,9 +140,9 @@ public class RenameResources {
 		// combine these iterators
 		ExtendedIterator<Triple> combinedTriples = subjectTriples.andThen(objectTriples);
 		// Filter reflexive triples, which are found twice in each find method, thus, we need to make sure to keep only one.
-		ExtendedIterator<Triple> filteredTriples = combinedTriples.filterKeep(new Filter<Triple>() {
+		ExtendedIterator<Triple> filteredTriples = combinedTriples.filterKeep(new Predicate<Triple>() {
 			@Override
-			public boolean accept(final Triple o) {
+			public boolean test(final Triple o) {
 				if(o.getSubject().equals(o.getObject())) {
 					reflexiveTriples.add(o);
 					return false;
@@ -187,9 +187,8 @@ public class RenameResources {
 //		for(final Triple t : addTriples) {
 //			rawGraph.add(t);
 //		}
-		BulkUpdateHandler buh = rawGraph.getBulkUpdateHandler();
-		buh.add(addTriples.iterator());
-		buh.delete(removeTriples.iterator());
+		GraphUtil.add(rawGraph, addTriples.iterator());
+		GraphUtil.delete(rawGraph, removeTriples.iterator());
 		
 		// Did we work in the back of the InfGraph? If so, we need to rebind raw data (more or less expensive)!
 		if(rawGraph != graph)

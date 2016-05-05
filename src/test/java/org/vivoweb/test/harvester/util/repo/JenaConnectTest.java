@@ -20,12 +20,12 @@ import org.vivoweb.harvester.util.repo.JenaConnect;
 import org.vivoweb.harvester.util.repo.MemJenaConnect;
 import org.vivoweb.harvester.util.repo.RecordHandler;
 import org.vivoweb.harvester.util.repo.SDBJenaConnect;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.StmtIterator;
 
 /**
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public class JenaConnectTest extends TestCase {
 	/**
@@ -100,7 +100,7 @@ public class JenaConnectTest extends TestCase {
 	
 	/**
 	 * Test method for
-	 * {@link org.vivoweb.harvester.util.repo.RDBJenaConnect#RDBJenaConnect(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
+	 * {@link org.vivoweb.harvester.util.repo.SDBJenaConnect#SDBJenaConnect(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
 	 * RDBJenaConnect(String dbUrl, String dbUser, String dbPass, String dbType, String dbClass)}.
 	 * @throws IOException error
 	 */
@@ -113,7 +113,7 @@ public class JenaConnectTest extends TestCase {
 	
 	/**
 	 * Test method for
-	 * {@link org.vivoweb.harvester.util.repo.RDBJenaConnect#RDBJenaConnect(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
+	 * {@link org.vivoweb.harvester.util.repo.SDBJenaConnect#SDBJenaConnect(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
 	 * RDBJenaConnect(String dbUrl, String dbUser, String dbPass, String dbType, String dbClass, String modelName)}.
 	 * @throws IOException error
 	 */

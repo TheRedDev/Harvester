@@ -27,24 +27,24 @@ import org.vivoweb.harvester.util.args.UsageException;
 import org.vivoweb.harvester.util.repo.JenaConnect;
 import org.vivoweb.harvester.util.repo.MemJenaConnect;
 import org.vivoweb.harvester.util.repo.TDBJenaConnect;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.QueryExecution;
-import com.hp.hpl.jena.query.QueryExecutionFactory;
-import com.hp.hpl.jena.query.QueryFactory;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.Syntax;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.Syntax;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
 
 /**
  * VIVO Score
  * @author Nicholas Skaggs nskaggs@ctrip.ufl.edu
  * @author Stephen Williams svwilliams@ctrip.ufl.edu
- * @author Christopher Haines hainesc@ctrip.ufl.edu
+ * @author Christopher Haines chris@chrishaines.net
  * @thanks Chris Westling cmw48@cornell.edu
  */
 public class Score {
@@ -214,20 +214,20 @@ public class Score {
 
 	/**
 	 * Constructor
-	 * @param inputJena
-	 * @param vivoJena
-	 * @param scoreJena
-	 * @param tempJenaDir
-	 * @param algorithms
-	 * @param inputPredicates
-	 * @param vivoPredicates
-	 * @param namespace
-	 * @param weights
-	 * @param matchThreshold
-	 * @param batchSize
-	 * @param reloadInput
-	 * @param reloadVivo
-	 * @param commonNames
+	 * @param inputJena model containing statements to be scored
+	 * @param vivoJena model containing vivoJena statements
+	 * @param scoreJena model containing scoring data statements
+	 * @param tempJenaDir model in which to store temp copy of input and vivo data statements
+	 * @param algorithms the classes of the algorithms to execute
+	 * @param inputPredicates the predicates to look for in inputJena model
+	 * @param vivoPredicates the predicates to look for in vivoJena model
+	 * @param namespace limit match Algorithm to only match rdf nodes in inputJena whose URI begin with this namespace
+	 * @param weights the weightings (0.0 , 1.0) for this score
+	 * @param matchThreshold score things with a total current score greater than or equal to this threshold
+	 * @param batchSize number of records to use in batch
+	 * @param reloadInput reload the temp copy of input, only needed if input has changed since last score
+	 * @param reloadVivo reload the temp copy of Vivo, only needed if Vivo has changed since last score
+	 * @param commonNames String containing a list of common names separated by ","
 	 */
 	public Score(JenaConnect inputJena, JenaConnect vivoJena, JenaConnect scoreJena, String tempJenaDir, Map<String, Class<? extends Algorithm>> algorithms, Map<String, String> inputPredicates, Map<String, String> vivoPredicates, String namespace, Map<String, Float> weights, Float matchThreshold, int batchSize, boolean reloadInput, boolean reloadVivo, String commonNames) {
 		this(inputJena, vivoJena, scoreJena, tempJenaDir, algorithms, inputPredicates, vivoPredicates, namespace, weights, matchThreshold, batchSize, reloadInput, reloadVivo);

@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.InitLog;
 import org.vivoweb.harvester.util.FileAide;
+import org.vivoweb.harvester.util.MathAide;
 import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
@@ -28,32 +29,31 @@ import org.vivoweb.harvester.util.args.UsageException;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
-import com.hp.hpl.jena.graph.GraphEvents;
-import com.hp.hpl.jena.query.Dataset;
-import com.hp.hpl.jena.query.Query;
-import com.hp.hpl.jena.query.QueryExecution;
-import com.hp.hpl.jena.query.QueryExecutionFactory;
-import com.hp.hpl.jena.query.QueryFactory;
-import com.hp.hpl.jena.query.QueryParseException;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.ResultSetFactory;
-import com.hp.hpl.jena.query.ResultSetFormatter;
-//import com.hp.hpl.jena.sparql.resultset.ResultsFormat;
-import com.hp.hpl.jena.sparql.resultset.ResultSetFormat;
-import com.hp.hpl.jena.query.Syntax;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.RDFWriter;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.shared.Lock;
+import org.apache.jena.graph.GraphEvents;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.QueryParseException;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFactory;
+import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.sparql.resultset.ResultsFormat;
+import org.apache.jena.query.Syntax;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.RDFWriter;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.shared.Lock;
  
-import com.hp.hpl.jena.update.UpdateAction; 
-import com.hp.hpl.jena.update.UpdateFactory;
+import org.apache.jena.update.UpdateAction; 
+import org.apache.jena.update.UpdateFactory;
 
 /**
  * Connection Helper for Jena Models
- * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+ * @author Christopher Haines (chris@chrishaines.net)
  */
 public abstract class JenaConnect {
 	/**
@@ -216,7 +216,9 @@ public abstract class JenaConnect {
 	 * @throws IOException error accessing file
 	 */
 	public void loadRdfFromFile(String fileName, String namespace, String language) throws IOException {
-		loadRdfFromStream(FileAide.getInputStream(fileName), namespace, language);
+		InputStream is = FileAide.getInputStream(fileName);
+		loadRdfFromStream(is, namespace, language);
+		is.close();
 	}
 	
 	/**
@@ -270,14 +272,14 @@ public abstract class JenaConnect {
 	 * @throws IOException error writing to stream
 	 */
 	private static void exportRdfToStream(Model m, OutputStream out, String language) throws IOException { 
-		RDFWriter fasterWriter = m.getWriter(language);
+		RDFWriter fasterWriter = m.getWriter(MathAide.nvl(language, "RDF/XML"));
 		fasterWriter.setProperty("showXmlDeclaration", "true");
 		fasterWriter.setProperty("allowBadURIs", "true");
 		fasterWriter.setProperty("relativeURIs", "");
 		OutputStreamWriter osw = new OutputStreamWriter(out, Charset.availableCharsets().get("UTF-8"));
 		fasterWriter.write(m, osw, "");
 		osw.flush();
-		out.flush();		
+		out.flush();
 	}
 	
 	/**
@@ -344,7 +346,9 @@ public abstract class JenaConnect {
 	 * @throws IOException error writing to file
 	 */
 	public void exportRdfToFile(String fileName, String language, boolean append) throws IOException {
-		exportRdfToStream(FileAide.getOutputStream(fileName, append), language);
+		OutputStream os = FileAide.getOutputStream(fileName, append);
+		exportRdfToStream(os, language);
+		os.close();
 	}
 	
 	/**
@@ -352,7 +356,8 @@ public abstract class JenaConnect {
 	 * @param inputJC the Model to read from
 	 */
 	public void removeRdfFromJC(JenaConnect inputJC) {
-		this.jenaModel.remove(inputJC.getJenaModel());
+//		this.jenaModel.remove(inputJC.getJenaModel());
+		this.jenaModel.remove(inputJC.getJenaModel().listStatements());
 	}
 	
 	/**
@@ -599,21 +604,56 @@ public abstract class JenaConnect {
 			this.jenaModel.commit();
 			 
 		}
-		this.jenaModel.close();
 	}
 	
 	/**
 	 * RDF formats
 	 */
 	 
-	protected static HashMap<String, ResultSetFormat> formatSymbols = new HashMap<String, ResultSetFormat>();
+	protected static HashMap<String, ResultsFormat> formatSymbols = new HashMap<String, ResultsFormat>();
     static {
-            formatSymbols.put(ResultSetFormat.syntaxXML.getSymbol(), ResultSetFormat.syntaxXML);
-            formatSymbols.put(ResultSetFormat.syntaxRDF_XML.getSymbol(), ResultSetFormat.syntaxRDF_XML);
-            formatSymbols.put(ResultSetFormat.syntaxRDF_N3.getSymbol(), ResultSetFormat.syntaxRDF_N3);
-            formatSymbols.put(ResultSetFormat.syntaxCSV.getSymbol(), ResultSetFormat.syntaxCSV);
-            formatSymbols.put(ResultSetFormat.syntaxText.getSymbol(), ResultSetFormat.syntaxText);
-            formatSymbols.put(ResultSetFormat.syntaxJSON.getSymbol(), ResultSetFormat.syntaxJSON);
+            formatSymbols.put(ResultsFormat.FMT_RS_XML.getSymbol(), ResultsFormat.FMT_RS_XML);
+            formatSymbols.put("rs_xml", ResultsFormat.FMT_RS_XML);
+            formatSymbols.put("rs_srx", ResultsFormat.FMT_RS_XML);
+            formatSymbols.put(ResultsFormat.FMT_RS_JSON.getSymbol(), ResultsFormat.FMT_RS_JSON);
+            formatSymbols.put("rs_json", ResultsFormat.FMT_RS_JSON);
+            formatSymbols.put("rs_srj", ResultsFormat.FMT_RS_JSON);
+            formatSymbols.put(ResultsFormat.FMT_RS_THRIFT.getSymbol(), ResultsFormat.FMT_RS_THRIFT);
+            formatSymbols.put("rs_thrift", ResultsFormat.FMT_RS_THRIFT);
+            formatSymbols.put("rs_srt", ResultsFormat.FMT_RS_THRIFT);
+            formatSymbols.put(ResultsFormat.FMT_RS_SSE.getSymbol(), ResultsFormat.FMT_RS_SSE);
+            formatSymbols.put("rs_sse", ResultsFormat.FMT_RS_SSE);
+            formatSymbols.put(ResultsFormat.FMT_RS_CSV.getSymbol(), ResultsFormat.FMT_RS_CSV);
+            formatSymbols.put("rs_csv", ResultsFormat.FMT_RS_CSV);
+            formatSymbols.put(ResultsFormat.FMT_RS_TSV.getSymbol(), ResultsFormat.FMT_RS_TSV);
+            formatSymbols.put("rs_tsv", ResultsFormat.FMT_RS_TSV);
+            formatSymbols.put(ResultsFormat.FMT_RS_BIO.getSymbol(), ResultsFormat.FMT_RS_BIO);
+            formatSymbols.put("rs_bio", ResultsFormat.FMT_RS_BIO);
+            formatSymbols.put("bio", ResultsFormat.FMT_RS_BIO);
+            formatSymbols.put(ResultsFormat.FMT_TEXT.getSymbol(), ResultsFormat.FMT_TEXT);
+            formatSymbols.put("rs_text", ResultsFormat.FMT_TEXT);
+            formatSymbols.put(ResultsFormat.FMT_COUNT.getSymbol(), ResultsFormat.FMT_COUNT);
+            formatSymbols.put("rs_count", ResultsFormat.FMT_COUNT);
+            formatSymbols.put("row_count", ResultsFormat.FMT_COUNT);
+            formatSymbols.put("rowcount", ResultsFormat.FMT_COUNT);
+            formatSymbols.put("numrows", ResultsFormat.FMT_COUNT);
+            formatSymbols.put(ResultsFormat.FMT_TUPLES.getSymbol(), ResultsFormat.FMT_TUPLES);
+            formatSymbols.put("rs_tuples", ResultsFormat.FMT_TUPLES);
+            formatSymbols.put(ResultsFormat.FMT_RDF_XML.getSymbol(), ResultsFormat.FMT_RDF_XML);
+            formatSymbols.put("rdf_xml", ResultsFormat.FMT_RDF_XML);
+            formatSymbols.put("rdfxml", ResultsFormat.FMT_RDF_XML);
+            formatSymbols.put(ResultsFormat.FMT_RDF_N3.getSymbol(), ResultsFormat.FMT_RDF_N3);
+            formatSymbols.put("rdf_n3", ResultsFormat.FMT_RDF_N3);
+            formatSymbols.put(ResultsFormat.FMT_RDF_TTL.getSymbol(), ResultsFormat.FMT_RDF_TTL);
+            formatSymbols.put("rdf_ttl", ResultsFormat.FMT_RDF_TTL);
+            formatSymbols.put("rdf_turtle", ResultsFormat.FMT_RDF_TTL);
+            formatSymbols.put("rdf_graph", ResultsFormat.FMT_RDF_TTL);
+            formatSymbols.put(ResultsFormat.FMT_RDF_NT.getSymbol(), ResultsFormat.FMT_RDF_NT);
+            formatSymbols.put("rdf_nt", ResultsFormat.FMT_RDF_NT);
+            formatSymbols.put("rdf_ntriples", ResultsFormat.FMT_RDF_NT);
+            formatSymbols.put("rdf_n-triples", ResultsFormat.FMT_RDF_NT);
+            formatSymbols.put(ResultsFormat.FMT_TRIG.getSymbol(), ResultsFormat.FMT_TRIG);
+            formatSymbols.put("rs_trig", ResultsFormat.FMT_TRIG);
     }
 
 	 
@@ -658,25 +698,24 @@ public abstract class JenaConnect {
 			}
 			if(query.isSelectType()) {
 				log.trace("output formatted results");
-				ResultSetFormat rsf = formatSymbols.get(resultFormatParam);
+				ResultsFormat rsf = formatSymbols.get(resultFormatParam);
                 if(rsf == null) {
-                     rsf = ResultSetFormat.syntaxText;
+                	rsf = ResultsFormat.lookup(resultFormatParam);
+                	if(rsf == null) {
+    					rsf = ResultsFormat.FMT_TEXT;
+    				}
                 }
                 ResultSet rs = qe.execSelect();
+                log.debug(rsf.getSymbol());
                 if (rs.hasNext()) {
-                   ResultSetFormatter.output(out, rs, rsf);
+                	if(rsf == ResultsFormat.FMT_TEXT) {
+                		ResultSetFormatter.out(out, rs);
+                	} else {
+                		ResultSetFormatter.output(out, rs, rsf);
+                	}
                 } else {
                 	log.warn("empty result set");
                 }
-				// this changed in newer versions of Jena
-				 
-				/*ResultsFormat rsf = ResultsFormat.lookup(resultFormatParam);				 
-				if (rsf == null) {
-					ResultSetFormatter.out(qe.execSelect());					 
-				} else {				 
-				   ResultSetFormatter.output(out, qe.execSelect(), rsf);
-				}*/
-				
 			} else if(query.isAskType()) {
 				out.write((Boolean.toString(qe.execAsk())+"\n").getBytes());
 			} else {
@@ -751,7 +790,7 @@ public abstract class JenaConnect {
 	
 	/**
 	 * Config parser for Jena Models
-	 * @author Christopher Haines (hainesc@ctrip.ufl.edu)
+	 * @author Christopher Haines (chris@chrishaines.net)
 	 */
 	private static class JenaConnectConfigParser extends DefaultHandler {
 		/**
@@ -907,7 +946,14 @@ public abstract class JenaConnect {
 	public static void main(String... args) {
 		Exception error = null;
 		try {
+			String harvLev = System.getProperty("console-log-level");
+			System.setProperty("console-log-level", "OFF");
 			InitLog.initLogger(args, getParser(), "ft");
+			if(harvLev == null) {
+				System.clearProperty("console-log-level");
+			} else {
+				System.setProperty("console-log-level", harvLev);
+			}
 			log.info(getParser().getAppName() + ": Start");
 			run(args);
 		} catch(IllegalArgumentException e) {
