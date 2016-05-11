@@ -122,38 +122,53 @@ public class Transfer {
 		 
 		if(this.removeMode) {
 			if(this.input != null) {
+				log.info("Removing input model rdf from output model");
 				this.output.removeRdfFromJC(this.input);
+				log.info("Remove complete");
 			}
 			if(this.inRDF != null) {
+				log.info("Removing input file rdf from output model");
 				this.output.removeRdfFromFile(this.inRDF, this.namespace, this.inRDFlang);
+				log.info("Remove complete");
 			}
 			if(this.inRH != null) {
+				log.info("Removing input record handler rdf records from output model");
 				int processed = this.output.removeRdfFromRH(this.inRH, this.namespace, this.inRDFlang);
-				log.info(getParser().getAppName() + ": Records Removed: "+ processed);
+				log.info("Removed " + processed + " records");
 			}
 		} else {
 			if(this.input != null) {
+				log.info("Loading input model rdf into output model");
 				this.output.loadRdfFromJC(this.input);
+				log.info("Load complete");
 			}
 			if(this.inRDF != null) {
+				log.info("Loading input file rdf into output model");
 				this.output.loadRdfFromFile(this.inRDF, this.namespace, this.inRDFlang);
+				log.info("Load complete");
 			}
 			if(this.inRH != null) {
+				log.info("Loading input record handler rdf records into output model");
 				int processed = this.output.loadRdfFromRH(this.inRH, this.namespace, this.inRDFlang);
-				log.info(getParser().getAppName() + ": Records loaded: "+ processed);				 
+				log.info("Loaded " + processed + " records");
 			}
 		}
 		
 		
 		if(this.dumpFile != null) {
+			log.info("Dumping output model to file: " + this.dumpFile);
 			this.output.exportRdfToFile(this.dumpFile);
+			log.info("Dump complete");
 		}
-		
-		if(this.input != null) {
-			this.input.sync();
-		}
+		// Not needed since  we never change it?
+//		if(this.input != null) {
+//			log.trace("Synchronizing input model");
+//			this.input.sync();
+//		}
 		if(this.output != null) {
+			log.trace("Synchronizing output model");
 			this.output.sync();
+			log.info("Sync complete");
 		}
 	}
 	

@@ -198,16 +198,16 @@ public class Smush {
 		for(String runName : this.inputPredicates) {
 			findSmushResourceChanges(this.inputJC, subsJC, addsJC, runName, this.namespace);
 		}
-		try {
-			log.debug("Subs:\n" + subsJC.exportRdfToString());
-		} catch(IOException e) {
-			// Do Nothing
-		}
-		try {
-			log.debug("Adds:\n" + addsJC.exportRdfToString());
-		} catch(IOException e) {
-			// Do Nothing
-		}
+//		try {
+//			log.debug("Subs:\n" + subsJC.exportRdfToString());
+//		} catch(IOException e) {
+//			// Do Nothing
+//		}
+//		try {
+//			log.debug("Adds:\n" + addsJC.exportRdfToString());
+//		} catch(IOException e) {
+//			// Do Nothing
+//		}
 		if(this.inPlace){
 			log.trace("removing old statements");
 			this.inputJC.removeRdfFromJC(subsJC);

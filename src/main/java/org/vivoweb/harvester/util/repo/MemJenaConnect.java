@@ -54,7 +54,12 @@ public class MemJenaConnect extends TDBJenaConnect {
 	/**
 	 * Constructor (Load rdf from input stream)
 	 * @param in input stream to load rdf from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the language the rdf is in. Predefined values for lang are "RDF/XML", "N-TRIPLE", "TURTLE" (or
 	 *        "TTL") and "N3". null represents the default language, "RDF/XML". "RDF/XML-ABBREV" is a synonym for
 	 *        "RDF/XML"

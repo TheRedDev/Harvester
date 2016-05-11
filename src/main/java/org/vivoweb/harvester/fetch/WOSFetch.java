@@ -433,9 +433,10 @@ public class WOSFetch {
 			} catch(TransformerException e) {
 				throw new IllegalArgumentException("Malformed XML", e);
 			}
-			
+			String lamrRespStr = lamrResponse.toString();
+			log.debug("LAMR Response: ", lamrRespStr);
 			try {
-				lamrRespDoc = XMLAide.getDocument(lamrResponse.toString());
+				lamrRespDoc = XMLAide.getDocument(lamrRespStr);
 			} catch(SAXException e) {
 				throw new IllegalArgumentException("Malformed XML", e);
 			}

@@ -197,7 +197,12 @@ public abstract class JenaConnect {
 	/**
 	 * Load in RDF
 	 * @param in input stream to read rdf from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the language the rdf is in. Predefined values for lang are "RDF/XML", "N-TRIPLE", "TURTLE" (or
 	 *        "TTL") and "N3". null represents the default language, "RDF/XML". "RDF/XML-ABBREV" is a synonym for
 	 *        "RDF/XML"
@@ -209,7 +214,12 @@ public abstract class JenaConnect {
 	/**
 	 * Load the RDF from a file
 	 * @param fileName the file to read from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the language the rdf is in. Predefined values for lang are "RDF/XML", "N-TRIPLE", "TURTLE" (or
 	 *        "TTL") and "N3". null represents the default language, "RDF/XML". "RDF/XML-ABBREV" is a synonym for
 	 *        "RDF/XML"
@@ -224,7 +234,12 @@ public abstract class JenaConnect {
 	/**
 	 * Load in RDF
 	 * @param rdf rdf string
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the language the rdf is in. Predefined values for lang are "RDF/XML", "N-TRIPLE", "TURTLE" (or
 	 *        "TTL") and "N3". null represents the default language, "RDF/XML". "RDF/XML-ABBREV" is a synonym for
 	 *        "RDF/XML"
@@ -363,7 +378,12 @@ public abstract class JenaConnect {
 	/**
 	 * Remove RDF from an input stream
 	 * @param in input stream to read rdf from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the language the rdf is in. Predefined values for lang are "RDF/XML", "N-TRIPLE", "TURTLE" (or
 	 *        "TTL") and "N3". null represents the default language, "RDF/XML". "RDF/XML-ABBREV" is a synonym for
 	 *        "RDF/XML"
@@ -375,7 +395,12 @@ public abstract class JenaConnect {
 	/**
 	 * Remove the RDF from a file
 	 * @param fileName the file to read from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the language the rdf is in. Predefined values for lang are "RDF/XML", "N-TRIPLE", "TURTLE" (or
 	 *        "TTL") and "N3". null represents the default language, "RDF/XML". "RDF/XML-ABBREV" is a synonym for
 	 *        "RDF/XML"
@@ -388,7 +413,12 @@ public abstract class JenaConnect {
 	/**
 	 * Removes all records in a RecordHandler from the model
 	 * @param rh the RecordHandler to pull records from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the rdf syntax language (RDF/XML, N3, TTL, etc). null = RDF/XML
 	 * @return number of records removed
 	 */
@@ -414,7 +444,12 @@ public abstract class JenaConnect {
 	/**
 	 * Adds all records in a RecordHandler to the model
 	 * @param rh the RecordHandler to pull records from
-	 * @param namespace the base uri to use for imported uris
+	 * @param namespace the base uri to be used when converting relative URI's to absolute URI's. (Resolving relative URIs
+	 * and fragment IDs is done by prepending the base URI to the relative URI/fragment.) If there are no 
+	 * relative URIs in the source, this argument may safely be null. If the base is the empty string, then relative
+	 * URIs will be retained in the model. This is typically unwise and will usually generate errors when writing 
+	 * the model back out.
+	 * See "Reading and Writing RDF in Apache Jena" for more information about concrete syntaxes. 
 	 * @param language the rdf syntax language (RDF/XML, N3, TTL, etc).  null = RDF/XML
 	 * @return number of records added
 	 */
@@ -948,7 +983,7 @@ public abstract class JenaConnect {
 		try {
 			String harvLev = System.getProperty("console-log-level");
 			System.setProperty("console-log-level", "OFF");
-			InitLog.initLogger(args, getParser(), "ft");
+			InitLog.initLogger(args, getParser(), "fth");
 			if(harvLev == null) {
 				System.clearProperty("console-log-level");
 			} else {
