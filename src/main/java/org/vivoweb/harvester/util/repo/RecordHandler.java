@@ -548,6 +548,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 		parser.addArgument(new ArgDef().setShortOption('r').setLongOpt("recordId").withParameter(true, "RECORD_ID").setDescription("the record id to use").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('v').setLongOpt("value").withParameter(true, "RECORD_VALUE").setDescription("set the value of RECORD_ID to be RECORD_VALUE").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("output-file").withParameter(true, "FILE_PATH").setDescription("output to this file rather than stdout").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('l').setLongOpt("list").setDescription("list the records in this record handler").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('t').setLongOpt("truncate").setDescription("truncate this record handler").setRequired(false));
 		return parser;
 	}
@@ -559,7 +560,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 	public static void main(String... args) {
 		Exception error = null;
 		try {
-			InitLog.initLogger(args, getParser(), "z");
+			InitLog.initLogger(args, getParser(), "h", "l");
 			log.info(getParser().getAppName() + ": Start");
 			run(args);
 		} catch(IllegalArgumentException e) {

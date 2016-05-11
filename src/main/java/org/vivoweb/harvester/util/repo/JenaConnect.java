@@ -983,7 +983,7 @@ public abstract class JenaConnect {
 		try {
 			String harvLev = System.getProperty("console-log-level");
 			System.setProperty("console-log-level", "OFF");
-			InitLog.initLogger(args, getParser(), "fth");
+			InitLog.initLogger(args, getParser(), "h", "t", "f");
 			if(harvLev == null) {
 				System.clearProperty("console-log-level");
 			} else {

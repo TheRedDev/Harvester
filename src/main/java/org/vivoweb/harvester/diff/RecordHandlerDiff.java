@@ -3,17 +3,9 @@
  * All rights reserved.
  * This program and the accompanying materials are made available under the terms of the new BSD license which accompanies this distribution, and is available at http://www.opensource.org/licenses/bsd-license.html
  ******************************************************************************/
-package org.vivoweb.harvester.diff;
+package org.vivoweb.harvester.util.repo;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import javax.xml.transform.Source;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vivoweb.harvester.util.InitLog;
@@ -21,8 +13,6 @@ import org.vivoweb.harvester.util.args.ArgDef;
 import org.vivoweb.harvester.util.args.ArgList;
 import org.vivoweb.harvester.util.args.ArgParser;
 import org.vivoweb.harvester.util.args.UsageException;
-import org.vivoweb.harvester.util.repo.Record;
-import org.vivoweb.harvester.util.repo.RecordHandler;
 
 /**
  * Two RecordHandlers and creates Three RecordHandlers.
@@ -55,10 +45,6 @@ public class RecordHandlerDiff {
 	 * record handler for changed records
 	 */
 	protected RecordHandler chgStore;
-	/**
-	 * force process records, clearing the three output RecordHandlers
-	 */
-	private boolean force;
 	
 	/**
 	 * Constructor
@@ -88,8 +74,7 @@ public class RecordHandlerDiff {
 			RecordHandler.parseConfig(argList.get("n"), argList.getValueMap("N")), 
 			RecordHandler.parseConfig(argList.get("a"), argList.getValueMap("A")), 
 			RecordHandler.parseConfig(argList.get("d"), argList.getValueMap("D")), 
-			RecordHandler.parseConfig(argList.get("c"), argList.getValueMap("C")), 
-			argList.has("f")
+			RecordHandler.parseConfig(argList.get("c"), argList.getValueMap("C"))
 		);
 	}
 	
@@ -98,17 +83,15 @@ public class RecordHandlerDiff {
 	 * @param oldRecordHandler the old records
 	 * @param newRecordHandler the new records
 	 * @param addRecordHandler the added records
-	 * @param delRecordHandler the deletd records
+	 * @param delRecordHandler the deleted records
 	 * @param chgRecordHandler the changed records
-	 * @param force process all records, clearing the three output records
 	 */
 	public RecordHandlerDiff(
 		RecordHandler oldRecordHandler, 
 		RecordHandler newRecordHandler, 
 		RecordHandler addRecordHandler, 
 		RecordHandler delRecordHandler, 
-		RecordHandler chgRecordHandler, 
-		boolean force
+		RecordHandler chgRecordHandler
 	) {
 		// create record handlers
 		this.oldStore = oldRecordHandler;
@@ -116,7 +99,6 @@ public class RecordHandlerDiff {
 		this.addStore = addRecordHandler;
 		this.delStore = delRecordHandler;
 		this.chgStore = chgRecordHandler;
-		this.force = force;
 		if(this.oldStore == null) {
 			throw new IllegalArgumentException("Must provide an 'old' record handler");
 		}
@@ -124,13 +106,13 @@ public class RecordHandlerDiff {
 			throw new IllegalArgumentException("Must provide a 'new' record handler");
 		}
 		if(this.addStore == null) {
-			throw new IllegalArgumentException("Must provide an 'added' record handler");
+			log.warn("No 'added' Record Handler provided, so added records will go nowhere");
 		}
 		if(this.delStore == null) {
-			throw new IllegalArgumentException("Must provide a 'deleted' record handler");
+			log.warn("No 'deleted' Record Handler provided, so deleted records will go nowhere");
 		}
 		if(this.chgStore == null) {
-			throw new IllegalArgumentException("Must provide a 'changed' record handler");
+			log.warn("No 'changed' Record Handler provided, so changed records will go nowhere");
 		}
 	}
 	
@@ -139,58 +121,38 @@ public class RecordHandlerDiff {
 	 * @throws IOException error processing
 	 */
 	public void execute() throws IOException {
-		// get from the in record and translate
-//		int oldRecordCount = 0;
-//		int newRecordCount = 0;
-//		int matchedRecordCount = 0;
-//		int addedRecordCount = 0;
-//		int deletedRecordCount = 0;
-//		int changedRecordCount = 0;
-//		int alreadyProcessedCount = 0;
-//		String recordData;
-		if(this.force) {
-			this.addStore.truncate();
-			this.delStore.truncate();
-			this.chgStore.truncate();
-		}
-		for(Record r : this.oldStore) {
-			if(this.force || r.needsProcessed(this.getClass())) {
-				log.trace("Processing Old Record " + r.getID());
-				
-				r.setProcessed(this.getClass());
-//				oldRecordCount++;
+		for(Record oldRec : this.oldStore) {
+			if(this.newStore.getRecordIDs().contains(oldRec.getID())) {
+				Record newRec = this.newStore.getRecord(oldRec.getID());
+				if(this.oldStore.needsUpdated(newRec)) {
+					if(this.chgStore != null) {
+						log.info("Processing changed record: "+oldRec.getID());
+						this.chgStore.addRecord(oldRec.getID(), oldRec.getData(), RecordHandlerDiff.class);
+					} else {
+						log.warn("Discarding changed record ("+oldRec.getID()+") due to no 'changed' Record Handler");
+					}
+				} else {
+					log.info("Ignoring unchanged record: "+oldRec.getID());
+				}
 			} else {
-				log.trace("No Processing Needed: " + r.getID());
-//				alreadyProcessedCount++;
+				if(this.delStore != null) {
+					log.info("Processing deleted record: "+oldRec.getID());
+					this.delStore.addRecord(oldRec.getID(), oldRec.getData(), RecordHandlerDiff.class);
+				} else {
+					log.warn("Discarding deleted record ("+oldRec.getID()+") due to no 'deleted' Record Handler");
+				}
 			}
 		}
-//		log.info(Integer.toString(translated) + " records translated.");
-//		log.info(Integer.toString(passed) + " records did not need translation");
-	}
-	
-	/**
-	 * using the javax xml transform factory this method uses the xsl to translate XML into the desired format
-	 * designated in the xsl.
-	 * @param inStream the input stream
-	 * @param outStream the output stream
-	 * @param translationStream the stream for the xsl
-	 * @throws IOException error translating
-	 */
-	public static void xmlTranslate(InputStream inStream, OutputStream outStream, InputStream translationStream) throws IOException {
-		StreamResult outputResult = new StreamResult(outStream);
-		// JAXP reads data using the Source interface
-		Source xmlSource = new StreamSource(inStream);
-		Source xslSource = new StreamSource(translationStream);
-		try {
-			// the factory pattern supports different XSLT processors
-			// this outputs to outStream (through outputResult)
-			TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", null).newTransformer(xslSource).transform(xmlSource, outputResult);
-		} catch(TransformerConfigurationException e) {
-			throw new IOException(e);
-		} catch(TransformerException e) {
-			throw new IOException(e);
+		for(Record newRec : this.newStore) {
+			if(!this.oldStore.getRecordIDs().contains(newRec.getID())) {
+				if(this.addStore != null) {
+					log.info("Processing added record: "+newRec.getID());
+					this.addStore.addRecord(newRec.getID(), newRec.getData(), RecordHandlerDiff.class);
+				} else {
+					log.warn("Discarding added record ("+newRec.getID()+") due to no 'added' Record Handler");
+				}
+			}
 		}
-		outStream.flush();
 	}
 	
 	/**
@@ -198,14 +160,17 @@ public class RecordHandlerDiff {
 	 * @return the ArgParser
 	 */
 	private static ArgParser getParser() {
-		ArgParser parser = new ArgParser("XSLTranslator");
-		parser.addArgument(new ArgDef().setShortOption('i').setLongOpt("input").withParameter(true, "CONFIG_FILE").setDescription("config file for input record handler").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('I').setLongOpt("inputOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of input recordhandler using VALUE").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("output").withParameter(true, "CONFIG_FILE").setDescription("config file for output record handler").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('O').setLongOpt("outputOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of output recordhandler using VALUE").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('x').setLongOpt("xslFile").withParameter(true, "XSL_FILE").setDescription("xsl file").setRequired(true));
-		parser.addArgument(new ArgDef().setShortOption('f').setLongOpt("force").setDescription("force translation of all input records, even if previously processed").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('c').setLongOpt("cleanXML").setDescription("Decode and sanitize XML").setRequired(false));
+		ArgParser parser = new ArgParser("RecordHandlerDiff");
+		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("old").withParameter(true, "CONFIG_FILE").setDescription("config file for old record handler").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('O').setLongOpt("oldOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of old recordhandler using VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('n').setLongOpt("new").withParameter(true, "CONFIG_FILE").setDescription("config file for new record handler").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('N').setLongOpt("newOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of new recordhandler using VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('a').setLongOpt("added").withParameter(true, "CONFIG_FILE").setDescription("config file for added record handler").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('A').setLongOpt("addedOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of added recordhandler using VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('d').setLongOpt("deleted").withParameter(true, "CONFIG_FILE").setDescription("config file for deleted record handler").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('D').setLongOpt("deletedOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of deleted recordhandler using VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('c').setLongOpt("changed").withParameter(true, "CONFIG_FILE").setDescription("config file for changed record handler").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('C').setLongOpt("changedOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of changed recordhandler using VALUE").setRequired(false));
 		return parser;
 	}
 	

@@ -102,6 +102,10 @@ public class RecordMetaData implements Comparable<RecordMetaData> {
 		 */
 		processed(),
 		/**
+		 * Data was transferred from another record handler
+		 */
+		transferred(),
+		/**
 		 * Something went wrong! Should never be used!
 		 */
 		error();

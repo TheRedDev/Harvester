@@ -93,6 +93,16 @@
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>
   </logger>
+  <logger name="org.vivoweb.harvester.util.repo.RecordTransfer" level="${harvester-level:-ALL}" additivity="false">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.vivoweb.harvester.util.repo.RecordHandlerDiff" level="${harvester-level:-ALL}" additivity="false">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
   <logger name="org.vivoweb.harvester.util.FileAide" level="WARN" additivity="false">
     <appender-ref ref="Console"/>
     <appender-ref ref="Error"/>
