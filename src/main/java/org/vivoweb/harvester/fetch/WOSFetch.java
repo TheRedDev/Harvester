@@ -586,7 +586,7 @@ public class WOSFetch {
 				log.debug("Records left = " + left);
 				this.searchString = getnextQuery(this.searchString);
 				try {
-					Thread.sleep(100); // do nothing for 100 miliseconds (1000 miliseconds = 1 second)
+					Thread.sleep(600); // do nothing for 600 miliseconds (1000 miliseconds = 1 second)
 				} catch(InterruptedException e) {
 					log.error(e.getMessage(), e);
 				} 
