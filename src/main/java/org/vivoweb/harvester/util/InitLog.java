@@ -140,26 +140,15 @@ public class InitLog {
 		if((args != null) && (parser != null)) {
 			ArgList argList = parser.parse(args, false);
 			if(noLogIfNotSetFlags != null) {
+				boolean test = true;
 				for(String testFlag : noLogIfNotSetFlags) {
-					boolean test = false;
-					try {
-						test = (!argList.has(testFlag));
-					} catch (IllegalArgumentException e) {
-						for(String subFlag : testFlag.split("|")) {
-							try {
-								if(argList.has(subFlag)) {
-									test = false;
-									break;
-								}
-							} catch (IllegalArgumentException se) {
-								test = true;
-							}
-						}
-					}
-					if(test) {
-						logLevel = "OFF";
+					if(argList.has(testFlag)) {
+						test = false;
 						break;
 					}
+				}
+				if(test) {
+					logLevel = "OFF";
 				}
 			}
 			if(argList.has("w")) {

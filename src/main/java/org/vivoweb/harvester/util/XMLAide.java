@@ -312,14 +312,7 @@ public class XMLAide {
 	public static void main(String... args) {
 		Exception error = null;
 		try {
-			String harvLev = System.getProperty("console-log-level");
-			System.setProperty("console-log-level", "OFF");
 			InitLog.initLogger(args, getParser(), "h");
-			if(harvLev == null) {
-				System.clearProperty("console-log-level");
-			} else {
-				System.setProperty("console-log-level", harvLev);
-			}
 			log.info(getParser().getAppName() + ": Start");
 			new XMLAide(args).execute();
 		} catch(IllegalArgumentException e) {

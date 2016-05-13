@@ -293,7 +293,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 			type = MapRecordHandler.class.getCanonicalName();
 		}
 		RecordHandler rh;
-		log.debug("Using class: '" + type + "'");
+//		log.debug("Using class: '" + type + "'");
 		try {
 			Object tempRH = Class.forName(type).newInstance();
 			if(!(tempRH instanceof RecordHandler)) {
@@ -495,45 +495,72 @@ public abstract class RecordHandler implements Iterable<Record> {
 		ArgList argList = getParser().parse(args);
 		RecordHandler rh = RecordHandler.parseConfig(argList.get("i"), argList.getValueMap("I"));
 		boolean list = argList.has("l");
+		boolean delete = argList.has("d");
 		String recordId = argList.get("r");
+		String bulkValue = argList.get("b");
 		String value = argList.get("v");
 		String output = argList.get("o");
 		boolean truncate = argList.has("t");
-		PrintStream os;
-		if(output != null && value != null) {
-			os = new PrintStream(FileAide.getOutputStream(output));
-		} else {
-			os = System.out;
-		}
+		
 		if(rh == null) {
 			throw new IllegalArgumentException("Must provide a source record handler");
 		}
 		if(value != null && recordId == null) {
 			throw new IllegalArgumentException("Cannot set a value when no record id specified");
 		}
-		if(list && recordId != null) {
-			throw new IllegalArgumentException("Cannot list contents when specifying a record id");
+		if(recordId == null && delete) {
+			throw new IllegalArgumentException("Cannot delete when no record id specified");
 		}
-		if(list) {
+		if(value != null && delete) {
+			throw new IllegalArgumentException("Cannot attempt to set a value and delete record in same action");
+		}
+		if(list && recordId != null) {
+			throw new IllegalArgumentException("Cannot list records when specifying a record id");
+		}
+		if(truncate && (recordId != null || list || bulkValue != null || output != null)) {
+			throw new IllegalArgumentException("When truncating, no other options are valid");
+		}
+		if(bulkValue != null && (recordId != null || list || output != null)) {
+			throw new IllegalArgumentException("When setting a bulk value, no other options are valid");
+		}
+
+		PrintStream os;
+		if(output != null) {
+			os = new PrintStream(FileAide.getOutputStream(output));
+		} else {
+			os = System.out;
+		}
+
+		if(truncate) {
+			log.info("Truncating Record Handler");
+			rh.truncate();
+		} else if(list) {
+			log.info("Listing records"+((output==null)?"":" to file"));
 			for(Record r : rh) {
 				os.println(r.getID());
 			}
-		}
-		if(recordId != null) {
-			Record r = rh.getRecord(recordId);
-			if(value != null) {
-				log.info("Setting new value for record: "+r.getID());
-				r.setData(value, RecordHandler.class);
+		} else if(recordId != null) {
+			if(delete) {
+				log.info("Deleting record: "+recordId);
+				rh.delRecord(recordId);
+			} else if(value != null) {
+				log.info("Setting new value for record: "+recordId);
+				rh.addRecord(recordId, value, RecordHandler.class, true);
 			} else {
+				Record r = rh.getRecord(recordId);
+				log.info("Outputting record value"+((output==null)?"":" to file"));
 				os.println(r.getData());
 			}
+		} else if(bulkValue != null) {
+			for(Record r: rh) {
+				log.trace("Setting bulk value on record: "+r.getID());
+				r.setData(bulkValue, RecordHandler.class);
+			}
 		}
+		
 		os.flush();
 		if(output != null) {
 			os.close();
-		}
-		if(truncate) {
-			rh.truncate();
 		}
 	}
 	
@@ -543,10 +570,12 @@ public abstract class RecordHandler implements Iterable<Record> {
 	 */
 	private static ArgParser getParser() {
 		ArgParser parser = new ArgParser("RecordHandler");
-		parser.addArgument(new ArgDef().setShortOption('i').setLongOpt("input-config").setDescription("CONFIG_FILE configuration filename for input recordhandler").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('i').setLongOpt("input-config").withParameter(true, "CONFIG_FILE").setDescription("CONFIG_FILE configuration filename for input recordhandler").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('I').setLongOpt("inputOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of input recordhanlder config using VALUE").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('r').setLongOpt("recordId").withParameter(true, "RECORD_ID").setDescription("the record id to use").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('v').setLongOpt("value").withParameter(true, "RECORD_VALUE").setDescription("set the value of RECORD_ID to be RECORD_VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('b').setLongOpt("bulk-value").withParameter(true, "RECORD_VALUE").setDescription("set the value of ALL records to be RECORD_VALUE").setRequired(false));
+		parser.addArgument(new ArgDef().setShortOption('d').setLongOpt("delete").setDescription("delete RECORD_ID").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("output-file").withParameter(true, "FILE_PATH").setDescription("output to this file rather than stdout").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('l').setLongOpt("list").setDescription("list the records in this record handler").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('t').setLongOpt("truncate").setDescription("truncate this record handler").setRequired(false));
@@ -560,7 +589,7 @@ public abstract class RecordHandler implements Iterable<Record> {
 	public static void main(String... args) {
 		Exception error = null;
 		try {
-			InitLog.initLogger(args, getParser(), "h", "l");
+			InitLog.initLogger(args, getParser(), "h", "o", "d", "b", "v", "t");
 			log.info(getParser().getAppName() + ": Start");
 			run(args);
 		} catch(IllegalArgumentException e) {

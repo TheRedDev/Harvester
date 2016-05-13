@@ -83,12 +83,17 @@
     <appender-ref ref="AllAppender"/>
     <!-- --><appender-ref ref="ClassAppender"/><!-- -->
   </logger>
-  <logger name="org.vivoweb.harvester.util.XPathTool" level="WARN" additivity="false">
+  <logger name="org.vivoweb.harvester.util.repo" level="WARN" additivity="false">
     <appender-ref ref="Console"/>
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>
   </logger>
-  <logger name="org.vivoweb.harvester.util.repo" level="WARN" additivity="false">
+  <logger name="org.vivoweb.harvester.util.repo.JenaConnect" level="${harvester-level:-ALL}" additivity="false">
+    <appender-ref ref="Console"/>
+    <appender-ref ref="Error"/>
+    <appender-ref ref="AllAppender"/>
+  </logger>
+  <logger name="org.vivoweb.harvester.util.repo.RecordHandler" level="${harvester-level:-ALL}" additivity="false">
     <appender-ref ref="Console"/>
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>
@@ -99,11 +104,6 @@
     <appender-ref ref="AllAppender"/>
   </logger>
   <logger name="org.vivoweb.harvester.util.repo.RecordHandlerDiff" level="${harvester-level:-ALL}" additivity="false">
-    <appender-ref ref="Console"/>
-    <appender-ref ref="Error"/>
-    <appender-ref ref="AllAppender"/>
-  </logger>
-  <logger name="org.vivoweb.harvester.util.FileAide" level="WARN" additivity="false">
     <appender-ref ref="Console"/>
     <appender-ref ref="Error"/>
     <appender-ref ref="AllAppender"/>
