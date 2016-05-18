@@ -164,22 +164,26 @@ public class WOSFetch {
 	 * @throws IOException error creating task
 	 */
 	private WOSFetch(ArgList args) throws IOException {
-		init(
-			new URL(args.get("u")), 
-			new URL(args.get("c")), 
-			new URL(args.get("l")), 
-			RecordHandler.parseConfig(args.get("o"), args.getValueMap("O")),
-			(args.has("a")?FileAide.getTextContent(args.get("a")):null),
-			FileAide.getTextContent(args.get("s")),
-			FileAide.getTextContent(args.get("m")),
-			args.get("p")
-		);
-		this.recordTag = args.get("r");
 		if(args.has("z")) {
 			setSessionPath(args.get("z"));
 		}
 		if(args.has("t")) {
 			this.terminateSession = true;
+		}
+		if(this.terminateSession && this.sessionPath != null) {
+			// ignore the rest, we have all we care about
+		} else {
+			init(
+				new URL(args.get("u")), 
+				new URL(args.get("c")), 
+				new URL(args.get("l")), 
+				RecordHandler.parseConfig(args.get("o"), args.getValueMap("O")),
+				(args.has("a")?FileAide.getTextContent(args.get("a")):null),
+				FileAide.getTextContent(args.get("s")),
+				FileAide.getTextContent(args.get("m")),
+				args.get("p")
+			);
+			this.recordTag = args.get("r");
 		}
 	}
 	
