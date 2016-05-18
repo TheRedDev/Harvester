@@ -134,10 +134,24 @@ public abstract class JenaConnect {
 		if((params == null) || params.isEmpty()) {
 			return null;
 		}
+		String type;
 		if(!params.containsKey("type")) {
-			throw new IllegalArgumentException("Must specify 'type' parameter {'rdb','sdb','tdb','file','mem'}");
+			if(params.containsKey("dbDir")) {
+				log.info("No type specified: interpolated type:'tdb' based on existence of 'dbDir' parameter");
+				type = "tdb";
+			} else if(params.containsKey("dbClass")) {
+				log.info("No type specified: interpolated type:'sdb' based on existence of 'dbClass' parameter");
+				type = "sdb";
+			} else if(params.containsKey("file")) {
+				log.info("No type specified: interpolated type:'file' based on existence of 'file' parameter");
+				type = "file";
+			} else {
+				log.warn("No type specified: using type:'mem'");
+				type = "mem";
+			}
+		} else {
+			type = params.get("type");
 		}
-		String type = params.get("type");
 		JenaConnect jc;
 		if(type.equalsIgnoreCase("mem")) {
 			jc = new MemJenaConnect(params.get("modelName"));
