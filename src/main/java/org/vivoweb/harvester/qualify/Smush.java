@@ -195,6 +195,7 @@ public class Smush {
 	public void execute() {
 		JenaConnect subsJC = new MemJenaConnect();
 		JenaConnect addsJC = new MemJenaConnect();
+		log.info("Calculating Smush Changes");
 		for(String runName : this.inputPredicates) {
 			findSmushResourceChanges(this.inputJC, subsJC, addsJC, runName, this.namespace);
 		}
@@ -209,17 +210,22 @@ public class Smush {
 //			// Do Nothing
 //		}
 		if(this.inPlace){
-			log.trace("removing old statements");
+			log.info("Removing Old Statements");
 			this.inputJC.removeRdfFromJC(subsJC);
-			log.trace("inserting new statements");
+			log.info("Inserting New Statements");
 			this.inputJC.loadRdfFromJC(addsJC);
 		}
 		if(this.outputJena != null) {
+			log.info("Loading RDF From Input Into Output");
 			this.outputJena.loadRdfFromJC(this.inputJC);
+			log.info("Removing Subtractions From Output");
 			this.outputJena.removeRdfFromJC(subsJC);
+			log.info("Loading Additions Into Output");
 			this.outputJena.loadRdfFromJC(addsJC);
+			log.info("Syncing Output Model");
 			this.outputJena.sync();
 		}
+		log.info("Syncing Input Model");
 		this.inputJC.sync();
 	}
 

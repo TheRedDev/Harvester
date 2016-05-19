@@ -237,10 +237,10 @@ public class SOAPMessenger {
 
 		this.xmlString = IOUtils.toString(this.inputStream,"UTF-8");
 
-		log.info("Built message");
+		log.debug("Built message");
 		log.debug("Message contents:\n" + this.xmlString);
 
-		log.info("opening the url connection");
+		log.debug("opening the url connection");
 		this.urlCon = (HttpURLConnection)this.url.openConnection();
 		
 		sendMessage();
@@ -253,7 +253,7 @@ public class SOAPMessenger {
 
 //		log.debug("Response contents:\n" + result);
 	    OutputStreamWriter outputWriter = new OutputStreamWriter(this.outputFile);
-		log.info("writing response");
+		log.debug("writing response");
 	    outputWriter.write(result);
 	    outputWriter.close();
 

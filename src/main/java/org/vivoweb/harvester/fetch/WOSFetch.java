@@ -7,6 +7,7 @@ package org.vivoweb.harvester.fetch;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashMap;
@@ -48,22 +49,22 @@ public class WOSFetch {
 	/**
 	 * RecordHandler to put data in.
 	 */
-	private RecordHandler outputRH;
+	private RecordHandler outputRH = null;
 	
 	/**
 	 * URL to send Authorization message to
 	 */
-	private URL authUrl;
+	private URL authUrl = null;
 	
 	/**
 	 * URL to send Authorization message to
 	 */
-	private URL searchUrl;
+	private URL searchUrl = null;
 	
 	/**
 	 * URL to send Authorization message to
 	 */
-	private URL lamrUrl;
+	private URL lamrUrl = null;
 
 	/**
 	 * SOAP style XML message to get authorization
@@ -116,6 +117,16 @@ public class WOSFetch {
 	private boolean terminateSession = true;
 	
 	/**
+	 * total number of records retrieved
+	 */
+	private int totalRecordsFound = 0;
+	
+	/**
+	 * total number of lamr records retrieved
+	 */
+	private int totalLamrRecordsFound = 0;
+	
+	/**
 	 * Constructor
 	 * @param authUrl The location of the authorization site
 	 * @param searchUrl The location of the search site
@@ -126,7 +137,7 @@ public class WOSFetch {
 	 * @param userPass the user name password string to be base 64 encoded
 	 * @throws IOException error talking with database
 	 */
-	public WOSFetch(URL authUrl, URL searchUrl, URL lamrUrl, RecordHandler outputRH, String xmlSearchFile, String xmlLamrFile, String userPass) throws IOException {
+	public WOSFetch(String authUrl, String searchUrl, String lamrUrl, RecordHandler outputRH, String xmlSearchFile, String xmlLamrFile, String userPass) throws IOException {
 		init(authUrl, searchUrl, lamrUrl, outputRH, null, FileAide.getTextContent(xmlSearchFile), FileAide.getTextContent(xmlLamrFile), userPass );
 		this.recordTag = getParser().getDefaultValue("r");
 	}
@@ -143,7 +154,7 @@ public class WOSFetch {
 	 * @param outputRH The record handler used for storing the harvested records
 	 * @throws IOException error talking with database
 	 */
-	public WOSFetch(URL authUrl, URL searchUrl, URL lamrUrl, String authFilePath, String xmlSearchFilePath, String xmlLamrFilePath, String userPass, RecordHandler outputRH) throws IOException {
+	public WOSFetch(String authUrl, String searchUrl, String lamrUrl, String authFilePath, String xmlSearchFilePath, String xmlLamrFilePath, String userPass, RecordHandler outputRH) throws IOException {
 		init(authUrl, searchUrl, lamrUrl, outputRH, MathAide.nvl2(authFilePath, FileAide.getTextContent(authFilePath)), FileAide.getTextContent(xmlSearchFilePath), FileAide.getTextContent(xmlLamrFilePath), userPass);
 		this.recordTag = getParser().getDefaultValue("r");
 	}
@@ -172,11 +183,22 @@ public class WOSFetch {
 		}
 		if(this.terminateSession && this.sessionPath != null) {
 			// ignore the rest, we have all we care about
+			init(
+				args.get("u"), 
+				null, 
+				null, 
+				null,
+				null,
+				null,
+				null,
+				null,
+				true
+			);
 		} else {
 			init(
-				new URL(args.get("u")), 
-				new URL(args.get("c")), 
-				new URL(args.get("l")), 
+				args.get("u"), 
+				args.get("c"), 
+				args.get("l"), 
 				RecordHandler.parseConfig(args.get("o"), args.getValueMap("O")),
 				(args.has("a")?FileAide.getTextContent(args.get("a")):null),
 				FileAide.getTextContent(args.get("s")),
@@ -214,8 +236,9 @@ public class WOSFetch {
 	 * @param xmlSearchString the search query message
 	 * @param xmlLamrString the links article match retrieval message
 	 * @param usernamePassword the user name password string to be base 64 encoded
+	 * @throws MalformedURLException error parsing url
 	 */
-	public WOSFetch(URL authorizationUrl, URL searchUrl, URL lamrhUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String usernamePassword) {
+	public WOSFetch(String authorizationUrl, String searchUrl, String lamrhUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String usernamePassword) throws MalformedURLException {
 		this(authorizationUrl, searchUrl, lamrhUrl, output, xmlAuthString, xmlSearchString, xmlLamrString, usernamePassword, getParser().getDefaultValue("r"));
 	}
 	
@@ -230,8 +253,9 @@ public class WOSFetch {
 	 * @param xmlLamrString the links article match retrieval message
 	 * @param usernamePassword the user name password string to be base 64 encoded
 	 * @param recordTag the tag that wraps each record in the search response
+	 * @throws MalformedURLException error parsing url
 	 */
-	public WOSFetch(URL authorizationUrl, URL searchUrl, URL lamrhUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String usernamePassword, String recordTag) {
+	public WOSFetch(String authorizationUrl, String searchUrl, String lamrhUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String usernamePassword, String recordTag) throws MalformedURLException {
 		init(authorizationUrl, searchUrl, lamrhUrl, output, xmlAuthString, xmlSearchString, xmlLamrString, usernamePassword);
 		this.recordTag = recordTag;
 	}
@@ -246,8 +270,25 @@ public class WOSFetch {
 	 * @param xmlSearchString the search query message
 	 * @param xmlLamrString the links article match retrieval message
 	 * @param userPass the user name password string to be base 64 encoded
+	 * @throws MalformedURLException error parsing url
 	 */
-	private void init(URL authorizationUrl, URL theSearchUrl, URL thelamrUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String userPass) {
+	private void init(String authorizationUrl, String theSearchUrl, String thelamrUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String userPass) throws MalformedURLException {
+		init(authorizationUrl, theSearchUrl, thelamrUrl, output, xmlAuthString, xmlSearchString, xmlLamrString, userPass, false);
+	}
+	/**
+	 * The initializing method called on via the constructors.
+	 * @param authorizationUrl The location of the authorization site
+	 * @param theSearchUrl The location of the search site
+	 * @param thelamrUrl The location of the links article match retrieval site
+	 * @param output The record handler used for storing the harvested records
+	 * @param xmlAuthString the authorization message
+	 * @param xmlSearchString the search query message
+	 * @param xmlLamrString the links article match retrieval message
+	 * @param userPass the user name password string to be base 64 encoded
+	 * @param quiet suppress error output
+	 * @throws MalformedURLException error parsing url
+	 */
+	private void init(String authorizationUrl, String theSearchUrl, String thelamrUrl, RecordHandler output, String xmlAuthString, String xmlSearchString, String xmlLamrString, String userPass, boolean quiet) throws MalformedURLException {
 		String defaultAuthString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
 			"<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" "+
 			"xmlns:ns2=\"http://auth.cxf.wokmws.thomsonreuters.com\">"+
@@ -258,45 +299,56 @@ public class WOSFetch {
 		    "xmlns:ns2=\"http://auth.cxf.wokmws.thomsonreuters.com\">"+
 			"<soap:Body><ns2:closeSession/></soap:Body></soap:Envelope>";
 		
-		this.outputRH = output;
-		this.authUrl = authorizationUrl;
-		this.usernamePassword = MathAide.nvl2(userPass, Base64.encodeBase64URLSafeString(userPass.getBytes()), null);
+		if(output == null) {
+			if(!quiet) {
+				log.debug("Outputfile = null");
+				log.error("Must provide output file!");
+			}
+		} else {
+			this.outputRH = output;
+//			log.debug("Outputfile = " + this.outputRH.toString());
+		}
+		
+		if(authorizationUrl == null) {
+			if(!quiet) {
+				log.debug("URL = null");
+				log.error("Must provide authorization site url!");
+			}
+		} else {
+			this.authUrl = new URL(authorizationUrl);
+//			log.debug("URL = "+ this.authUrl.toString());
+		}
+		
+		this.usernamePassword = MathAide.nvl2(userPass, Base64.encodeBase64URLSafeString(getBytes(userPass)), null);
 		this.authMessage = MathAide.nvl(xmlAuthString, defaultAuthString);
 		this.closeMessage = closeString;
-		this.searchUrl = theSearchUrl;
+		
+		if(theSearchUrl == null) {
+			if(!quiet) {
+				log.debug("URL = null");
+				log.error("Must provide Search site url!");
+			}
+		} else {
+			this.searchUrl = new URL(theSearchUrl);
+//			log.debug("URL = "+ this.searchUrl.toString());
+		}
+		
 		this.searchString = xmlSearchString;
-
-		this.lamrUrl = thelamrUrl;
+		
+		if(thelamrUrl != null) {
+			this.lamrUrl = new URL(thelamrUrl);
+		}
 		this.lamrMessage = xmlLamrString;
 		this.lamrSet = new TreeSet<String>();
 		
 		log.debug("Checking for NULL values");
-		if(this.outputRH == null) {
-			log.debug("Outputfile = null");
-			log.error("Must provide output file!");
-//		} else {
-//			log.debug("Outputfile = " + this.outputRH.toString());
-		}
-		
-		if(this.searchString == null) {
+		if(this.searchString == null && !quiet) {
 			log.debug("Search = null");
-			log.error("Must provide Search message file!");
+			if(!quiet) {
+				log.error("Must provide Search message file!");
+			}
 //		} else {
 //			log.debug("Search = " + this.searchString);
-		}
-		
-		if(this.authUrl == null) {
-			log.debug("URL = null");
-			log.error("Must provide authorization site url!");
-//		} else {
-//			log.debug("URL = "+ this.authUrl.toString());
-		}
-		
-		if(this.searchUrl == null) {
-			log.debug("URL = null");
-			log.error("Must provide Search site url!");
-//		} else {
-//			log.debug("URL = "+ this.searchUrl.toString());
 		}
 	}
 	
@@ -328,6 +380,18 @@ public class WOSFetch {
 			throw new IOException(e);
 		}
 		return nextQuery;
+	}
+	
+	/**
+	 * Get the byte array of a string
+	 * @param s the string
+	 * @return the byte array from the string, null if null string
+	 */
+	private byte[] getBytes(String s) {
+		if(s == null) {
+			return null;
+		}
+		return s.getBytes();
 	}
 	
 	/**
@@ -371,8 +435,9 @@ public class WOSFetch {
 			recordMap.put(id, data);
 //			writeRecord(id, data);
 			numRecords++;
+			this.totalRecordsFound++;
 		}
-		log.debug("Extracted "+ numRecords +" records from search");
+		log.trace("Extracted "+ numRecords +" records from search");
 		return recordMap;
 	}
 	
@@ -382,6 +447,7 @@ public class WOSFetch {
 	 */
 	private void executeLamrQuery() throws IOException {
 		try {
+			log.trace("Building LAMR Query");
 			if(this.lamrSet.isEmpty()){
 				log.debug("No LAMR query sent, empty LAMR set.");
 				return;
@@ -398,21 +464,21 @@ public class WOSFetch {
 	//			log.debug("LAMR Message :\n"+XMLAide.formatXML(lamrDoc));
 			Element lookUp = null;
 			for(Element currentmap : IterableAdaptor.adapt(lamrDoc.getElementsByTagName("map"), Element.class)) {
-				try {
-					log.debug("Element :\n" + XMLAide.formatXML(currentmap));
-				} catch(TransformerException e) {
-					log.warn("Error formatting xml", e);
-				}
+//				try {
+//					log.debug("Element :\n" + XMLAide.formatXML(currentmap));
+//				} catch(TransformerException e) {
+//					log.warn("Error formatting xml", e);
+//				}
 	//			log.debug("Element name = \"" + currentmap.getAttribute("id")+ "\"");
 				if(currentmap.getAttribute("id").contentEquals("lookup")){
-					log.debug("Found element lookup");
+					log.debug("Found element #lookup");
 	//				lookUp = (Element)currentmap.getParentNode();
 					lookUp = currentmap;
 					break;
 				}
 			}
 			if(lookUp == null){
-				log.error("No \"lookup\" node in LAMR query message");
+				log.error("No #lookup node in LAMR query message");
 			} else {
 	//			log.debug("prelookUp = " + XMLAide.formatXML(lookUp));
 				for(String currentUT : this.lamrSet){
@@ -428,6 +494,7 @@ public class WOSFetch {
 	//		log.debug("LAMR Message :\n"+XMLAide.formatXML(lamrDoc));
 			
 			//send lamrquery
+			log.trace("Sending LAMR Query");
 			Document lamrRespDoc = null;
 	
 			ByteArrayOutputStream lamrResponse = new ByteArrayOutputStream();
@@ -448,7 +515,7 @@ public class WOSFetch {
 	//			log.debug("LAMR Response :\n"+nodeToString(lamrRespDoc));
 	//			extract records - A little hacky - message specifics sensitive
 	//			To ensure no erroneous name spaces rebuilding structure from existing data.
-			log.debug("Extracting LAMR Records");
+			log.trace("Extracting LAMR Records");
 	//		records are in map elements.
 	
 			int recordsFound = 0;
@@ -468,6 +535,7 @@ public class WOSFetch {
 					}
 					if(ut != "") {
 						recordsFound++;
+						this.totalLamrRecordsFound ++;
 						recordRoot.setAttribute( "ID",  ut);
 	
 						Element currentDup = lamrRespDoc.createElement("map");
@@ -488,7 +556,7 @@ public class WOSFetch {
 					}
 				}
 			}
-			log.debug("Found " + recordsFound + " LAMR Records");
+			log.trace("Found " + recordsFound + " LAMR Records");
 			this.lamrSet.clear();
 		} catch(UnknownHostException e) {
 			log.error(e.getMessage());
@@ -510,10 +578,12 @@ public class WOSFetch {
 	 * @throws IOException error reading and writing to recordhandlers or lamr service
 	 */
 	public void compileLamrList(String id) throws IOException {
-		log.trace("Adding LAMR UT = " + id);
-		this.lamrSet.add(id);
-		if(this.lamrSet.size() == 50){
-			executeLamrQuery();
+		if(this.lamrUrl != null) {
+			log.trace("Adding LAMR UT = " + id);
+			this.lamrSet.add(id);
+			if(this.lamrSet.size() == 50) {
+				executeLamrQuery();
+			}
 		}
 	}
 	
@@ -533,7 +603,7 @@ public class WOSFetch {
 					this.authCode = null;
 				}
 			} catch(IOException e) {
-				log.info("Unable to Load Saved Session");
+				log.trace("Unable to Load Saved Session");
 //				log.debug("Error Stacktrace", e);
 			}
 		}
@@ -555,8 +625,8 @@ public class WOSFetch {
 				if(StringUtils.isBlank(this.authCode)) {
 					log.error(authResp);
 				}
+				log.info("Started New Session: "+this.authCode);
 			}
-			log.debug("auth code: "+this.authCode);
 			
 			// save the session authCode to our session file if we have one
 			if(this.sessionPath != null) {
@@ -565,7 +635,9 @@ public class WOSFetch {
 			
 			// fetch records
 			int recordsFound,lastRec,count;
+			log.info("Beginning Search");
 			do {
+				log.trace("Executing Search");
 				ByteArrayOutputStream searchResponse = new ByteArrayOutputStream();
 				new SOAPMessenger(this.searchUrl, searchResponse, this.searchString, this.authCode, null).execute();
 				String searchResp = searchResponse.toString("UTF-8");
@@ -579,7 +651,8 @@ public class WOSFetch {
 				log.debug("Search count = \"" + searchCount + "\"");
 				String firstrecord = XMLAide.getXPathResultFromString(this.searchString, "//retrieveParameters/firstRecord");
 				log.debug("first record = \"" + firstrecord + "\"");
-	
+				
+				log.trace("Extracting Search Records");
 				for(Entry<String, String> x : extractSearchRecords(searchResp).entrySet()) {
 					writeRecord(x.getKey(), x.getValue());
 				}
@@ -595,9 +668,12 @@ public class WOSFetch {
 					log.error(e.getMessage(), e);
 				} 
 			} while(lastRec < recordsFound);
-			
-			executeLamrQuery();
+			if(this.lamrUrl != null) {
+				executeLamrQuery();
+			}
 		}
+		log.info("Retrieved "+this.totalRecordsFound+" Records");
+		log.info("Retrieved "+this.totalLamrRecordsFound+" LAMR Records");
 		// close the session if we need to
 		if(this.terminateSession && StringUtils.isNotBlank(this.authCode)) {
 			closeSession();
@@ -626,12 +702,12 @@ public class WOSFetch {
 		parser.addArgument(new ArgDef().setShortOption('r').setLongOpt("recordtag").withParameter(true, "XMLTAG").setDescription("The XML tag which surrounds each record.").setDefaultValue("records"));
 		parser.addArgument(new ArgDef().setShortOption('u').setLongOpt("authurl").withParameter(true, "URL").setDescription("The URL which will receive the AUTHMESSAGE.").setRequired(true));
 		parser.addArgument(new ArgDef().setShortOption('c').setLongOpt("searchconnection").withParameter(true, "URL").setDescription("The URL which will receive the SEARCHMESSAGE.").setRequired(true));
-		parser.addArgument(new ArgDef().setShortOption('l').setLongOpt("lamrconnection").withParameter(true, "URL").setDescription("The URL which will receive the LAMRMESSAGE.").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('l').setLongOpt("lamrconnection").withParameter(true, "URL").setDescription("The URL which will receive the LAMRMESSAGE.").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('s').setLongOpt("searchmessage").withParameter(true, "SEARCHMESSAGE").setDescription("The SEARCHMESSAGE file path.").setRequired(true));
 		parser.addArgument(new ArgDef().setShortOption('a').setLongOpt("authmessage").withParameter(true, "AUTHMESSAGE").setDescription("The AUTHMESSAGE file path.").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('m').setLongOpt("lamrmessage").withParameter(true, "LAMRMESSAGE").setDescription("The LAMRMESSAGE file path.").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('p').setLongOpt("usernamepassword").withParameter(true, "USERNAMEPASSWORD").setDescription("The username and password string to be encoded using base64").setRequired(false));
-		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("output").withParameter(true, "OUTPUT_FILE").setDescription("XML result file path").setRequired(true));
+		parser.addArgument(new ArgDef().setShortOption('o').setLongOpt("output").withParameter(true, "OUTPUT_FILE").setDescription("XML result file path").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('O').setLongOpt("outputOverride").withParameterValueMap("RH_PARAM", "VALUE").setDescription("override the RH_PARAM of output recordhandler using VALUE").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('z').setLongOpt("reuseSession").withParameter(true, "SESSIONSAVEFILE").setDescription("Save the session authCode in this file path, reusing session if already existing").setRequired(false));
 		parser.addArgument(new ArgDef().setShortOption('t').setLongOpt("terminateSession").setDescription("Terminate the reused session, do nothing else").setRequired(false));

@@ -365,6 +365,7 @@ public class Score {
 	 * @throws IOException error connecting to the models
 	 */
 	private Dataset prepDataset() throws IOException {
+		log.info("Preparing Dataset");
 		// Bring all models into a single Dataset
 		JenaConnect vivoClone = this.tempJena.neighborConnectClone("http://vivoweb.org/harvester/model/scoring#vivoClone");
 		if(vivoClone.isEmpty() || this.reloadVivo) {
@@ -405,6 +406,7 @@ public class Score {
 	 */
 	private ResultSet getResultSet() throws IOException {
 		Dataset ds = prepDataset();
+		log.info("Building Result Set");
 		log.trace("Building Query");
 		String sQuery = buildSelectQuery();
 		log.trace("Score Query:\n" + sQuery);
@@ -431,7 +433,7 @@ public class Score {
 		if(!rs.hasNext()) {
 			log.info("No Results Found");
 		} else {
-			log.info("Building Record Set");
+			log.info("Building Solution Set");
 			Map<String, String> tempMap;
 			for(QuerySolution solution : IterableAdaptor.adapt(rs)) {
 				String sinputuri = solution.getResource("sInput").getURI();
@@ -597,7 +599,7 @@ public class Score {
 				scores +
 			"}";
 		// Push Score Data into score model
-		log.trace("Loading Score Data into Score Model:\n" + sparql);
+//		log.trace("Loading Score Data into Score Model:\n" + sparql);
 		this.scoreJena.executeUpdateQuery(sparql);
 	}
 	

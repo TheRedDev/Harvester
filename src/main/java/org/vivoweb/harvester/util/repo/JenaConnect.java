@@ -137,13 +137,13 @@ public abstract class JenaConnect {
 		String type;
 		if(!params.containsKey("type")) {
 			if(params.containsKey("dbDir")) {
-				log.info("No type specified: interpolated type:'tdb' based on existence of 'dbDir' parameter");
+//				log.info("No type specified: interpolated type:'tdb' based on existence of 'dbDir' parameter");
 				type = "tdb";
 			} else if(params.containsKey("dbClass")) {
-				log.info("No type specified: interpolated type:'sdb' based on existence of 'dbClass' parameter");
+//				log.info("No type specified: interpolated type:'sdb' based on existence of 'dbClass' parameter");
 				type = "sdb";
 			} else if(params.containsKey("file")) {
-				log.info("No type specified: interpolated type:'file' based on existence of 'file' parameter");
+//				log.info("No type specified: interpolated type:'file' based on existence of 'file' parameter");
 				type = "file";
 			} else {
 				log.warn("No type specified: using type:'mem'");

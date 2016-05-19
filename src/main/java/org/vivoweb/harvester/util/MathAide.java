@@ -99,7 +99,7 @@ public class MathAide {
 	 * @param c parameter to return otherwise
 	 * @return B if A is not null, C otherwise 
 	 */
-	public static <T> T nvl2(T a, T b, T c) {
+	public static <T> T nvl2(Object a, T b, T c) {
 		return (a == null)?c:b;
 	}
 	
@@ -109,7 +109,7 @@ public class MathAide {
 	 * @param b parameter to return if A is not null
 	 * @return B if A is not null, null otherwise 
 	 */
-	public static <T> T nvl2(T a, T b) {
+	public static <T> T nvl2(Object a, T b) {
 		return (a == null)?null:b;
 	}
 }

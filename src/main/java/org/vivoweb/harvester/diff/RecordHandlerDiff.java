@@ -121,37 +121,69 @@ public class RecordHandlerDiff {
 	 * @throws IOException error processing
 	 */
 	public void execute() throws IOException {
+		int addCount = 0;
+		int chgCount = 0;
+		int delCount = 0;
+		int uncCount = 0;
 		for(Record oldRec : this.oldStore) {
 			if(this.newStore.getRecordIDs().contains(oldRec.getID())) {
 				Record newRec = this.newStore.getRecord(oldRec.getID());
 				if(this.oldStore.needsUpdated(newRec)) {
 					if(this.chgStore != null) {
-						log.info("Processing changed record: "+oldRec.getID());
+						log.trace("Processing Changed record: "+oldRec.getID());
 						this.chgStore.addRecord(oldRec.getID(), oldRec.getData(), RecordHandlerDiff.class);
 					} else {
-						log.warn("Discarding changed record ("+oldRec.getID()+") due to no 'changed' Record Handler");
+						log.trace("Discarding Changed record: "+oldRec.getID());
 					}
+					chgCount++;
 				} else {
-					log.info("Ignoring unchanged record: "+oldRec.getID());
+					log.trace("Ignoring Unchanged record: "+oldRec.getID());
+					uncCount++;
 				}
 			} else {
 				if(this.delStore != null) {
-					log.info("Processing deleted record: "+oldRec.getID());
+					log.trace("Processing Deleted record: "+oldRec.getID());
 					this.delStore.addRecord(oldRec.getID(), oldRec.getData(), RecordHandlerDiff.class);
 				} else {
-					log.warn("Discarding deleted record ("+oldRec.getID()+") due to no 'deleted' Record Handler");
+					log.trace("Discarding Deleted record: "+oldRec.getID());
 				}
+				delCount++;
 			}
 		}
 		for(Record newRec : this.newStore) {
 			if(!this.oldStore.getRecordIDs().contains(newRec.getID())) {
 				if(this.addStore != null) {
-					log.info("Processing added record: "+newRec.getID());
+					log.trace("Processing Added record: "+newRec.getID());
 					this.addStore.addRecord(newRec.getID(), newRec.getData(), RecordHandlerDiff.class);
 				} else {
-					log.warn("Discarding added record ("+newRec.getID()+") due to no 'added' Record Handler");
+					log.trace("Discarding Added record: "+newRec.getID());
 				}
+				addCount++;
 			}
+		}
+		if(addCount > 0) {
+			if(this.addStore != null) {
+				log.info("Processed "+addCount+" Added Records");
+			} else {
+				log.info("Discarded "+addCount+" Added Records");
+			}
+		}
+		if(chgCount > 0) {
+			if(this.chgStore != null) {
+				log.info("Processed "+chgCount+" Changed Records");
+			} else {
+				log.info("Discarded "+chgCount+" Changed Records");
+			}
+		}
+		if(delCount > 0) {
+			if(this.delStore != null) {
+				log.info("Processed "+delCount+" Deleted Records");
+			} else {
+				log.info("Discarded "+delCount+" Deleted Records");
+			}
+		}
+		if(uncCount > 0) {
+			log.info("Ignored "+uncCount+" Unchanged Records");
 		}
 	}
 	

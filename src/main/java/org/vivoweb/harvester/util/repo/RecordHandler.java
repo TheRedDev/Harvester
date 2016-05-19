@@ -290,13 +290,13 @@ public abstract class RecordHandler implements Iterable<Record> {
 		String type = params.get("rhClass");
 		if(type == null) {
 			if(params.containsKey("fileDir")) {
-				log.info("No RecordHandler class specified: interpolated TextFileRecordHandler based on existence of 'fileDir' parameter");
+//				log.info("No RecordHandler class specified: interpolated TextFileRecordHandler based on existence of 'fileDir' parameter");
 				type = TextFileRecordHandler.class.getCanonicalName();
 			} else if(params.containsKey("dataFieldType")) {
-				log.info("No RecordHandler class specified: interpolated JenaRecordHandler based on existence of 'dataFieldType' parameter");
+//				log.info("No RecordHandler class specified: interpolated JenaRecordHandler based on existence of 'dataFieldType' parameter");
 				type = JenaRecordHandler.class.getCanonicalName();
 			} else if(params.containsKey("dataFieldName")) {
-				log.info("No RecordHandler class specified: interpolated JDBCRecordHandler based on existence of 'dataFieldName' parameter");
+//				log.info("No RecordHandler class specified: interpolated JDBCRecordHandler based on existence of 'dataFieldName' parameter");
 				type = JDBCRecordHandler.class.getCanonicalName();
 			} else {
 				log.warn("No RecordHandler class specified: using MapRecordHandler");
